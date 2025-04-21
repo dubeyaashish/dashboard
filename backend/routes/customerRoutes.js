@@ -1,4 +1,4 @@
-// routes/
+// routes/customerRoutes.js
 import express from 'express';
 import Customer from '../models/Customer.js';
 import Job from '../models/Job.js';
@@ -6,6 +6,7 @@ import JobLocation from '../models/JobLocation.js';
 import CustomerReview from '../models/CustomerReview.js';
 
 const router = express.Router();
+
 // Get customer list
 router.get('/', async (req, res) => {
   try {
@@ -303,4 +304,3 @@ router.get('/:customerId/jobs/:jobId', async (req, res) => {
 });
 
 export default router;
-

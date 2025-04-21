@@ -42,5 +42,5 @@ technicianProfileSchema.index({ position: 1 });
 technicianProfileSchema.index({ status: 1 });
 technicianProfileSchema.index({ "workCondition.jobType": 1 });
 
-const TechnicianProfile = mongoose.model('TechnicianProfile', technicianProfileSchema);
+const TechnicianProfile = mongoose.model('TechnicianProfile', technicianProfileSchema, 'TechnicianProfile');
 export default TechnicianProfile;

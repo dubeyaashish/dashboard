@@ -44,5 +44,5 @@ jobSchema.index({ "type": 1 });
 jobSchema.index({ "priority": 1 });
 jobSchema.index({ technicianProfileIDs: 1 });
 
-const Job = mongoose.model('Job', jobSchema);
+const Job = mongoose.model('Job', jobSchema, 'Job');
 export default Job;

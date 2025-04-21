@@ -21,5 +21,5 @@ customerSchema.index({ name: 1 });
 customerSchema.index({ phone: 1 });
 customerSchema.index({ email: 1 });
 
-const Customer = mongoose.model('Customer', customerSchema);
+const Customer = mongoose.model('Customer', customerSchema, 'Customer');
 export default Customer;

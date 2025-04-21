@@ -36,5 +36,5 @@ jobLocationSchema.index({ province: 1 });
 jobLocationSchema.index({ district: 1 });
 jobLocationSchema.index({ customerID: 1 });
 
-const JobLocation = mongoose.model('JobLocation', jobLocationSchema);
+const JobLocation = mongoose.model('JobLocation', jobLocationSchema, 'JobLocation');
 export default JobLocation;

@@ -53,21 +53,11 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
 });
 
-console.log('>>> Registered routes:')
-app._router.stack.forEach(layer => {
-  if (layer.route && layer.route.path) {
-    const methods = Object.keys(layer.route.methods).map(m => m.toUpperCase()).join(',');
-    console.log(`${methods} ${layer.route.path}`);
-  } else if (layer.name === 'router' && layer.handle.stack) {
-    // mounted sub‑router
-    layer.handle.stack.forEach(r => {
-      if (r.route && r.route.path) {
-        const methods = Object.keys(r.route.methods).map(m => m.toUpperCase()).join(',');
-        console.log(`${methods} ${r.route.path}`);
-      }
-    });
-  }
-});
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something broke!');
+  });
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

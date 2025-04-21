@@ -13,5 +13,5 @@ const precomputedMetricsSchema = new mongoose.Schema({
 
 precomputedMetricsSchema.index({ metricType: 1, date: 1 }, { unique: true });
 
-const PrecomputedMetrics = mongoose.model('PrecomputedMetrics', precomputedMetricsSchema);
+const PrecomputedMetrics = mongoose.model('PrecomputedMetrics', precomputedMetricsSchema, 'PrecomputedMetrics');
 export default PrecomputedMetrics;

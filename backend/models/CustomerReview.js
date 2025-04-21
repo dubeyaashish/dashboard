@@ -23,5 +23,5 @@ customerReviewSchema.index({ createdAt: 1 });
 customerReviewSchema.index({ jobID: 1 });
 customerReviewSchema.index({ technicianProfileIDs: 1 });
 
-const CustomerReview = mongoose.model('CustomerReview', customerReviewSchema);
+const CustomerReview = mongoose.model('CustomerReview', customerReviewSchema, 'CustomerReview');
 export default CustomerReview;
