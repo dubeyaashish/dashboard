@@ -24,7 +24,7 @@ router.get('/technician-performance', async (req, res) => {
       },
       {
         $lookup: {
-          from: 'technicianprofiles',
+          from: 'TechnicianProfile',
           localField: 'technicianProfileIDs',
           foreignField: '_id',
           as: 'technician'
@@ -73,7 +73,7 @@ router.get('/technician-performance', async (req, res) => {
       { $limit: 50 },
       {
         $lookup: {
-          from: 'technicianprofiles',
+          from: 'TechnicianProfile',
           localField: 'technicianProfileIDs',
           foreignField: '_id',
           as: 'technician'
@@ -137,7 +137,7 @@ router.get('/geographic', async (req, res) => {
       },
       {
         $lookup: {
-          from: 'joblocations',
+          from: 'Joblocation',
           localField: 'jobLocationID',
           foreignField: '_id',
           as: 'location'
@@ -172,7 +172,7 @@ router.get('/geographic', async (req, res) => {
       },
       {
         $lookup: {
-          from: 'joblocations',
+          from: 'Joblocation',
           localField: 'jobLocationID',
           foreignField: '_id',
           as: 'location'
@@ -215,7 +215,7 @@ router.get('/geographic', async (req, res) => {
       },
       {
         $lookup: {
-          from: 'joblocations',
+          from: 'Joblocation',
           localField: 'jobLocationID',
           foreignField: '_id',
           as: 'location'

@@ -69,7 +69,7 @@ router.get('/:id/jobs', async (req, res) => {
       { $limit: parseInt(limit) },
       {
         $lookup: {
-          from: 'joblocations',
+          from: 'JobLocation',
           localField: 'jobLocationID',
           foreignField: '_id',
           as: 'location',
@@ -79,7 +79,7 @@ router.get('/:id/jobs', async (req, res) => {
       { $unwind: { path: '$location', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
-          from: 'technicianprofiles',
+          from: 'TechnicianProfile',
           localField: 'technicianProfileIDs',
           foreignField: '_id',
           as: 'technicians',
@@ -88,7 +88,7 @@ router.get('/:id/jobs', async (req, res) => {
       },
       {
         $lookup: {
-          from: 'customerreviews',
+          from: 'CustomerReview',
           localField: '_id',
           foreignField: 'jobID',
           as: 'review'
@@ -175,7 +175,7 @@ router.get('/:customerId/jobs/:jobId', async (req, res) => {
       { $match: { _id: jobId } },
       {
         $lookup: {
-          from: 'joblocations',
+          from: 'JobLocation',
           localField: 'jobLocationID',
           foreignField: '_id',
           as: 'location',
@@ -185,7 +185,7 @@ router.get('/:customerId/jobs/:jobId', async (req, res) => {
       { $unwind: { path: '$location', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
-          from: 'customers',
+          from: 'Customer',
           localField: 'location.customerID',
           foreignField: '_id',
           as: 'customer',
@@ -195,7 +195,7 @@ router.get('/:customerId/jobs/:jobId', async (req, res) => {
       { $unwind: { path: '$customer', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
-          from: 'technicianprofiles',
+          from: 'TechnicianProfile',
           localField: 'technicianProfileIDs',
           foreignField: '_id',
           as: 'technicians'
@@ -203,7 +203,7 @@ router.get('/:customerId/jobs/:jobId', async (req, res) => {
       },
       {
         $lookup: {
-          from: 'customerreviews',
+          from: 'CustomerReview',
           localField: '_id',
           foreignField: 'jobID',
           as: 'review'
@@ -212,7 +212,7 @@ router.get('/:customerId/jobs/:jobId', async (req, res) => {
       { $unwind: { path: '$review', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
-          from: 'jobstatushistories',
+          from: 'JobStatusHistory',
           localField: '_id',
           foreignField: 'jobID',
           as: 'statusHistory'

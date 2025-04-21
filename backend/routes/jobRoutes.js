@@ -71,7 +71,7 @@ router.get('/overview', async (req, res) => {
       pipeline.push(
         {
           $lookup: {
-            from: 'technicianprofiles',
+            from: 'TechnicianProfile',
             localField: 'technicianProfileIDs',
             foreignField: '_id',
             as: 'technicians'
@@ -162,7 +162,7 @@ router.get('/overview', async (req, res) => {
       { $match: matchCriteria },
       {
         $lookup: {
-          from: 'joblocations',
+          from: 'JobLocation',
           localField: 'jobLocationID',
           foreignField: '_id',
           as: 'location',
@@ -180,7 +180,7 @@ router.get('/overview', async (req, res) => {
       { $match: matchCriteria },
       {
         $lookup: {
-          from: 'joblocations',
+          from: 'JobLocation',
           localField: 'jobLocationID',
           foreignField: '_id',
           as: 'location',
@@ -254,7 +254,7 @@ router.get('/map-data', async (req, res) => {
       { $match: matchCriteria },
       {
         $lookup: {
-          from: 'joblocations',
+          from: 'JobLocation',
           localField: 'jobLocationID',
           foreignField: '_id',
           as: 'location',
@@ -277,7 +277,7 @@ router.get('/map-data', async (req, res) => {
       { $unwind: { path: '$location', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
-          from: 'customers',
+          from: 'Customer',
           localField: 'location.customerID',
           foreignField: '_id',
           as: 'customer',
@@ -287,7 +287,7 @@ router.get('/map-data', async (req, res) => {
       { $unwind: { path: '$customer', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
-          from: 'technicianprofiles',
+          from: 'TechnicianProfile',
           localField: 'technicianProfileIDs',
           foreignField: '_id',
           as: 'technicians',
