@@ -16,9 +16,17 @@ const customerReviewSchema = new mongoose.Schema({
   overall: Number,
   recommend: Number,
   comment: String,
-  createdAt: Date
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
+// Indexes for optimization
 customerReviewSchema.index({ createdAt: 1 });
 customerReviewSchema.index({ jobID: 1 });
 customerReviewSchema.index({ technicianProfileIDs: 1 });
