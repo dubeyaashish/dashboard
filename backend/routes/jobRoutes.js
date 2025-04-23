@@ -49,7 +49,7 @@ router.get('/overview', async (req, res) => {
       { $match: matchCriteria },
       {
         $lookup: {
-          from: 'joblocations',
+          from: 'JobLocation',
           localField: 'jobLocationID',
           foreignField: '_id',
           as: 'jobLocation',
@@ -86,10 +86,17 @@ router.get('/overview', async (req, res) => {
           }
         }
       );
+    } else {
+      // Always lookup technicians for name display
+      pipeline.push({
+        $lookup: {
+          from: 'TechnicianProfile',
+          localField: 'technicianProfileIDs',
+          foreignField: '_id',
+          as: 'technicians'
+        }
+      });
     }
-    
-    // Add pagination
-    const skip = (page - 1) * limit;
     
     // Clone the pipeline for total count
     const countPipeline = [...pipeline, { $count: 'total' }];
@@ -97,7 +104,7 @@ router.get('/overview', async (req, res) => {
     // Add pagination to the main pipeline
     pipeline.push(
       { $sort: { createdAt: -1 } },
-      { $skip: parseInt(skip) },
+      { $skip: parseInt(page - 1) * parseInt(limit) },
       { $limit: parseInt(limit) }
     );
     
@@ -105,7 +112,7 @@ router.get('/overview', async (req, res) => {
     pipeline.push({
       $project: {
         _id: 1,
-        no: 1,
+        jobNo: '$no',
         status: 1,
         type: 1,
         priority: 1,
@@ -127,6 +134,23 @@ router.get('/overview', async (req, res) => {
     ]);
     
     const total = countResult[0]?.total || 0;
+    
+    // Process the technician names like in Streamlit
+    const processedJobs = jobs.map(job => {
+      const technicians = job.technicians || [];
+      const technicianNames = technicians
+        .map(tech => {
+          const firstName = tech.firstName || '';
+          const lastName = tech.lastName || '';
+          return `${firstName} ${lastName}`.trim();
+        })
+        .filter(name => name.length > 0);
+      
+      return {
+        ...job,
+        technician_names: technicianNames.length > 0 ? technicianNames.join(', ') : 'N/A'
+      };
+    });
     
     // Get today's jobs
     const todayStart = new Date();
@@ -197,7 +221,7 @@ router.get('/overview', async (req, res) => {
     res.json({
       success: true,
       data: {
-        jobs,
+        jobs: processedJobs,
         pagination: {
           total,
           page: parseInt(page),
@@ -316,7 +340,7 @@ router.get('/map-data', async (req, res) => {
         locationName: '$location.name',
         locationProvince: '$location.province',
         locationDistrict: '$location.district',
-        coordinates: '$location.location.coordinates',
+        locationCoordinates: '$location.location.coordinates',
         customerName: '$customer.name',
         technicians: 1
       }
@@ -324,12 +348,24 @@ router.get('/map-data', async (req, res) => {
     
     const mapData = await Job.aggregate(pipeline);
     
-    // Process the data for the map
+    // Process the data for the map - similar to Streamlit
     const processedData = mapData.map(job => {
       const technicians = job.technicians || [];
-      const technicianNames = technicians.map(tech => 
-        `${tech.firstName || ''} ${tech.lastName || ''}`.trim()
-      ).filter(name => name.length > 0);
+      const technicianNames = technicians
+        .map(tech => {
+          const firstName = tech.firstName || '';
+          const lastName = tech.lastName || '';
+          return `${firstName} ${lastName}`.trim();
+        })
+        .filter(name => name.length > 0);
+      
+      // Extract coordinates with proper checks
+      let lon = null;
+      let lat = null;
+      
+      if (job.locationCoordinates && Array.isArray(job.locationCoordinates) && job.locationCoordinates.length === 2) {
+        [lon, lat] = job.locationCoordinates;
+      }
       
       return {
         id: job._id,
@@ -343,12 +379,14 @@ router.get('/map-data', async (req, res) => {
           name: job.locationName,
           province: job.locationProvince,
           district: job.locationDistrict,
-          coordinates: job.coordinates
+          coordinates: [lon, lat]
         },
         customerName: job.customerName,
-        technicianNames: technicianNames.join(', ') || 'N/A'
+        technicianNames: technicianNames.length > 0 ? technicianNames.join(', ') : 'N/A',
+        lon: lon,
+        lat: lat
       };
-    });
+    }).filter(job => job.lon !== null && job.lat !== null);
     
     res.json({
       success: true,
@@ -361,4 +399,3 @@ router.get('/map-data', async (req, res) => {
 });
 
 export default router;
-

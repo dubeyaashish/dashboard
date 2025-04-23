@@ -101,7 +101,7 @@ const Dashboard = () => {
     { id: 'type', label: 'Type', minWidth: 120 },
     { id: 'priority', label: 'Priority', minWidth: 100 },
     { id: 'locationName', label: 'Location', minWidth: 150 },
-    { id: 'technicianNames', label: 'Technicians', minWidth: 180 },
+    { id: 'technician_names', label: 'Technicians', minWidth: 180 },
     { id: 'createdAt', label: 'Created At', minWidth: 150, format: 'date' }
   ];
   
@@ -261,10 +261,11 @@ const Dashboard = () => {
           {/* Overview Tab */}
           {tabValue === 0 && (
             <>
-              <Grid container spacing={3} mb={4}>
+              {/* Status and Priority charts - full width, one per row */}
+              <Grid container spacing={4} mb={5}>
                 <Grid item xs={12} md={6}>
                   <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '150ms' : '0ms' }}>
-                    <Box>
+                    <Box sx={{ height: 450, width: '100%' }}>
                       <StatusPieChart 
                         data={dashboardData?.distributions?.status || []} 
                         title="Job Status Distribution" 
@@ -272,25 +273,28 @@ const Dashboard = () => {
                     </Box>
                   </Fade>
                 </Grid>
-                <Grid item xs={12} md={6}>
+                
+                <Grid item xs={12}>
                   <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '300ms' : '0ms' }}>
-                    <Box>
+                    <Box sx={{ height: 450, width: '100%' }}>
                       <BarChart 
                         data={dashboardData?.distributions?.priority || []} 
                         title="Job Priority Distribution" 
                         xAxisKey="_id"
                         dataKey="count"
                         color="#F59E0B" // Amber color
+                        height={420} // Explicitly set chart height
                       />
                     </Box>
                   </Fade>
                 </Grid>
               </Grid>
               
-              <Grid container spacing={3} mb={4}>
-                <Grid item xs={12} md={6}>
+              {/* Province and District charts - full width, one per row */}
+              <Grid container spacing={4} mb={5}>
+                <Grid item xs={12}>
                   <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '450ms' : '0ms' }}>
-                    <Box>
+                    <Box sx={{ height: 500, width: '100%' }}>
                       <BarChart 
                         data={dashboardData?.distributions?.province || []} 
                         title="Most Jobs by Province" 
@@ -298,13 +302,15 @@ const Dashboard = () => {
                         dataKey="count"
                         horizontal={true}
                         color="#3B82F6" // Blue color
+                        height={470} // Explicitly set chart height
                       />
                     </Box>
                   </Fade>
                 </Grid>
-                <Grid item xs={12} md={6}>
+                
+                <Grid item xs={12}>
                   <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '600ms' : '0ms' }}>
-                    <Box>
+                    <Box sx={{ height: 500, width: '100%' }}>
                       <BarChart 
                         data={dashboardData?.distributions?.district || []} 
                         title="Most Jobs by District" 
@@ -312,6 +318,7 @@ const Dashboard = () => {
                         dataKey="count"
                         horizontal={true}
                         color="#10B981" // Green color
+                        height={470} // Explicitly set chart height
                       />
                     </Box>
                   </Fade>

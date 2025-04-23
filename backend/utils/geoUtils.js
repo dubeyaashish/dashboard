@@ -5,8 +5,35 @@ import path from 'path';
 // Function to load GeoJSON data for Thailand provinces
 export const loadThailandGeoJSON = async () => {
   try {
-    const filePath = path.join(process.cwd(), 'data', 'thailand_provinces.geojson');
+    // Try different file names and paths, similar to Streamlit's flexibility
+    const possiblePaths = [
+      path.join(process.cwd(), 'data', 'thailand.json'),
+      path.join(process.cwd(), 'data', 'thailand_provinces.geojson'),
+      path.join(process.cwd(), 'backend', 'data', 'thailand.json'),
+      path.join(process.cwd(), '..', 'data', 'thailand.json')
+    ];
+    
+    let filePath = null;
+    
+    // Try each path until we find one that exists
+    for (const p of possiblePaths) {
+      try {
+        await fs.access(p);
+        filePath = p;
+        console.log(`Found Thailand GeoJSON at: ${p}`);
+        break;
+      } catch (e) {
+        console.log(`Thailand GeoJSON not found at: ${p}`);
+      }
+    }
+    
+    if (!filePath) {
+      console.error('Thailand GeoJSON not found in any expected location');
+      return null;
+    }
+    
     const data = await fs.readFile(filePath, 'utf8');
+    console.log(`Loaded Thailand GeoJSON, size: ${data.length} bytes`);
     return JSON.parse(data);
   } catch (error) {
     console.error('Error loading Thailand GeoJSON:', error);
@@ -17,9 +44,21 @@ export const loadThailandGeoJSON = async () => {
 // Function to convert MongoDB job data to GeoJSON format
 export const jobsToGeoJSON = (jobs) => {
   const features = jobs
-    .filter(job => job.location?.coordinates?.length === 2)
+    .filter(job => {
+      // Check valid coordinates
+      if (job.location?.coordinates?.length === 2) return true;
+      if (job.lon !== undefined && job.lat !== undefined) return true;
+      return false;
+    })
     .map(job => {
-      const [lon, lat] = job.location.coordinates;
+      // Get coordinates
+      let lon, lat;
+      if (job.location?.coordinates?.length === 2) {
+        [lon, lat] = job.location.coordinates;
+      } else {
+        lon = job.lon;
+        lat = job.lat;
+      }
       
       return {
         type: 'Feature',
@@ -36,7 +75,7 @@ export const jobsToGeoJSON = (jobs) => {
           location: job.locationName || job.location?.name,
           province: job.locationProvince || job.location?.province,
           district: job.locationDistrict || job.location?.district,
-          technicians: job.technicianNames,
+          technicians: job.technicianNames || job.technician_names,
           createdAt: job.createdAt,
           customerName: job.customerName
         }
