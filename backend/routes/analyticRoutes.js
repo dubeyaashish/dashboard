@@ -82,7 +82,7 @@ router.get('/technician-performance', async (req, res) => {
       { $unwind: { path: '$technician', preserveNullAndEmptyArrays: false } },
       {
         $lookup: {
-          from: 'jobs',
+          from: 'Job',
           localField: 'jobID',
           foreignField: '_id',
           as: 'job'
@@ -137,7 +137,7 @@ router.get('/geographic', async (req, res) => {
       },
       {
         $lookup: {
-          from: 'Joblocation',
+          from: 'JobLocation',
           localField: 'jobLocationID',
           foreignField: '_id',
           as: 'location'
@@ -172,7 +172,7 @@ router.get('/geographic', async (req, res) => {
       },
       {
         $lookup: {
-          from: 'Joblocation',
+          from: 'JobLocation',
           localField: 'jobLocationID',
           foreignField: '_id',
           as: 'location'

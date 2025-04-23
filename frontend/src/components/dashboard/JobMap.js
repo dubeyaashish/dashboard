@@ -1,3 +1,4 @@
+// File: frontend/src/components/dashboard/JobMap.js
 import React, { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, Typography, Box, CircularProgress, alpha, useTheme } from '@mui/material';
 import 'leaflet/dist/leaflet.css';
@@ -14,7 +15,9 @@ const JobMap = ({ data, title, loading }) => {
     const initializeMap = async () => {
       try {
         const L = await import('leaflet');
-        const markerClusterModule = await import('leaflet.markercluster');
+        await import('leaflet.markercluster');
+        await import('leaflet.markercluster/dist/MarkerCluster.css');
+        await import('leaflet.markercluster/dist/MarkerCluster.Default.css');
         
         if (!mapRef.current || mapInitialized) return;
         
@@ -58,22 +61,25 @@ const JobMap = ({ data, title, loading }) => {
         // Clear existing markers
         markersLayer.current.clearLayers();
         
-        // Status colors for markers - same as Streamlit
+        // Status colors for markers - match Streamlit implementation
         const statusColors = {
-          'WAITINGJOB': '#FFA500',
-          'WORKING': '#1E90FF',
-          'PENDING': '#FFD700',
-          'COMPLETED': '#32CD32',
-          'CLOSED': '#006400',
-          'CANCELLED': '#DC143C',
-          'REVIEW': '#9932CC'
+          'WAITINGJOB': '#FFA500', // orange
+          'WORKING': '#1E90FF',    // blue
+          'PENDING': '#FFD700',    // yellow
+          'COMPLETED': '#32CD32',  // green
+          'CLOSED': '#006400',     // dark green
+          'CANCELLED': '#DC143C',  // crimson
+          'REVIEW': '#9932CC'      // purple
         };
         
         console.log(`Adding ${data.length} markers to map`);
         
+        // Count of valid markers added
+        let validMarkers = 0;
+        
         // Add new markers
         data.forEach(job => {
-          // Coordinates checks based on Streamlit implementation
+          // Coordinates checks - match Streamlit implementation
           let lat = null, lon = null;
           
           if (job.location && job.location.coordinates) {
@@ -87,13 +93,14 @@ const JobMap = ({ data, title, loading }) => {
             lat = job.lat;
           }
           
-          if (!lat || !lon) {
-            console.log(`Job ${job.jobNo} has invalid coordinates`, job);
-            return;
+          if (!lat || !lon || isNaN(parseFloat(lat)) || isNaN(parseFloat(lon))) {
+            return; // Skip invalid coordinates
           }
           
+          validMarkers++;
           const color = statusColors[job.status] || '#3388ff';
           
+          // Create custom pin marker like in Streamlit
           const markerHtmlStyles = `
             background-color: ${color};
             width: 2rem;
@@ -105,6 +112,7 @@ const JobMap = ({ data, title, loading }) => {
             border-radius: 2rem 2rem 0;
             transform: rotate(45deg);
             border: 1px solid #FFFFFF;
+            box-shadow: 0 0 4px rgba(0,0,0,0.5);
           `;
           
           const icon = L.divIcon({
@@ -132,10 +140,41 @@ const JobMap = ({ data, title, loading }) => {
           markersLayer.current.addLayer(marker);
         });
         
+        console.log(`Added ${validMarkers} valid markers to map`);
+        
         // Fit bounds if we have markers
         if (markersLayer.current.getLayers().length > 0) {
           leafletMap.current.fitBounds(markersLayer.current.getBounds(), { padding: [50, 50] });
+        } else {
+          // Default view if no markers
+          leafletMap.current.setView([15.87, 100.99], 6);
         }
+        
+        // Add legend like in Streamlit
+        if (document.querySelector('.map-legend')) {
+          document.querySelector('.map-legend').remove();
+        }
+        
+        const legend = L.control({ position: 'bottomleft' });
+        legend.onAdd = function() {
+          const div = L.DomUtil.create('div', 'info legend map-legend');
+          div.style.backgroundColor = 'white';
+          div.style.padding = '10px';
+          div.style.border = '2px solid grey';
+          div.style.borderRadius = '5px';
+          
+          div.innerHTML = '<p><b>Job Status</b></p>';
+          Object.entries(statusColors).forEach(([status, color]) => {
+            div.innerHTML += `
+              <p><i style="background-color: ${color}; width: 10px; height: 10px; display: inline-block; border-radius: 50%;"></i> ${status}</p>
+            `;
+          });
+          
+          return div;
+        };
+        
+        legend.addTo(leafletMap.current);
+        
       } catch (error) {
         console.error("Error updating markers:", error);
       }
@@ -143,6 +182,109 @@ const JobMap = ({ data, title, loading }) => {
     
     updateMarkers();
   }, [data, mapInitialized, loading]);
+  
+  // If there are no coordinates, show province-level aggregation like in Streamlit
+  const showProvinceAggregation = () => {
+    if (!mapInitialized || !data || data.length === 0) return;
+    
+    const updateProvinceMarkers = async () => {
+      try {
+        const L = await import('leaflet');
+        
+        // Clear existing markers
+        markersLayer.current.clearLayers();
+        
+        // Group by province
+        const provinceGroups = {};
+        data.forEach(job => {
+          const province = job.location?.province || 'Unknown';
+          if (!provinceGroups[province]) {
+            provinceGroups[province] = {
+              count: 0,
+              coordinates: null
+            };
+          }
+          provinceGroups[province].count++;
+          
+          // Use first valid coordinates found for the province
+          if (!provinceGroups[province].coordinates) {
+            let lat = null, lon = null;
+            if (job.location?.coordinates?.length === 2) {
+              [lon, lat] = job.location.coordinates;
+            } else if (job.lat && job.lon) {
+              lat = job.lat;
+              lon = job.lon;
+            }
+            
+            if (lat && lon) {
+              provinceGroups[province].coordinates = [lat, lon];
+            }
+          }
+        });
+        
+        // Fallback coordinates for provinces
+        const provinceCoordinates = {
+          "Bangkok": [13.7563, 100.5018],
+          "Chiang Mai": [18.7883, 98.9853],
+          "Phuket": [7.9519, 98.3381],
+          "Chon Buri": [13.3611, 100.9847],
+          "Songkhla": [7.1756, 100.6142],
+          "Nakhon Ratchasima": [14.9801, 102.0978],
+          "Khon Kaen": [16.4419, 102.8360],
+          "Rayong": [12.6831, 101.2376],
+          "Udon Thani": [17.4138, 102.7870],
+          "Chiang Rai": [19.9105, 99.8406]
+        };
+        
+        // Get maximum count for scaling
+        const maxCount = Math.max(...Object.values(provinceGroups).map(g => g.count));
+        
+        // Add province circles
+        Object.entries(provinceGroups).forEach(([province, data]) => {
+          // Use provided coordinates or fallback
+          let coordinates = data.coordinates;
+          if (!coordinates && provinceCoordinates[province]) {
+            coordinates = provinceCoordinates[province];
+          }
+          
+          if (!coordinates) return;
+          
+          // Scale marker size based on count
+          const radius = 5 + (data.count / maxCount * 25);
+          
+          // Add circle marker
+          L.circleMarker(coordinates, {
+            radius: radius,
+            fillColor: '#3388ff',
+            color: '#ffffff',
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.6
+          })
+          .bindPopup(`<b>${province}</b>: ${data.count} jobs`)
+          .addTo(markersLayer.current);
+          
+          // Add text label
+          L.divIcon({
+            html: `<div style="font-weight: bold; font-size: ${10 + data.count / maxCount * 6}px; text-align: center;">${province}</div>`,
+            className: 'province-label',
+            iconSize: [120, 20],
+            iconAnchor: [60, 10]
+          });
+        });
+        
+        // Fit map to markers
+        if (markersLayer.current.getLayers().length > 0) {
+          leafletMap.current.fitBounds(markersLayer.current.getBounds(), { padding: [50, 50] });
+        }
+        
+      } catch (error) {
+        console.error("Error updating province markers:", error);
+      }
+    };
+    
+    updateProvinceMarkers();
+  };
   
   return (
     <Card 
@@ -157,27 +299,29 @@ const JobMap = ({ data, title, loading }) => {
       }}
     >
       <CardContent sx={{ height: '100%', p: 2 }}>
-        <Typography 
-          variant="h6" 
-          gutterBottom
-          sx={{ 
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            '&::before': {
-              content: '""',
-              display: 'block',
-              width: 4,
-              height: 20,
-              borderRadius: 4,
-              bgcolor: theme.palette.primary.main,
-              mr: 1.5,
-              boxShadow: `0 0 10px ${alpha(theme.palette.primary.main, 0.5)}`
-            }
-          }}
-        >
-          {title}
-        </Typography>
+        {title && (
+          <Typography 
+            variant="h6" 
+            gutterBottom
+            sx={{ 
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              '&::before': {
+                content: '""',
+                display: 'block',
+                width: 4,
+                height: 20,
+                borderRadius: 4,
+                bgcolor: theme.palette.primary.main,
+                mr: 1.5,
+                boxShadow: `0 0 10px ${alpha(theme.palette.primary.main, 0.5)}`
+              }
+            }}
+          >
+            {title}
+          </Typography>
+        )}
         
         {loading ? (
           <Box display="flex" justifyContent="center" alignItems="center" height="calc(100% - 30px)">
@@ -187,7 +331,7 @@ const JobMap = ({ data, title, loading }) => {
           <Box 
             ref={mapRef} 
             sx={{ 
-              height: 'calc(100% - 30px)', 
+              height: title ? 'calc(100% - 30px)' : '100%', 
               width: '100%', 
               minHeight: 450,
               bgcolor: alpha(theme.palette.background.default, 0.5),

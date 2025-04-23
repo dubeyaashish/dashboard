@@ -1,3 +1,4 @@
+// File: frontend/src/components/customer/CustomerList.js
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -24,19 +25,27 @@ const CustomerList = ({ onSelectCustomer, selectedCustomerId }) => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [error, setError] = useState(null);
   const limit = 20;
 
   useEffect(() => {
     const fetchCustomers = async () => {
       setLoading(true);
+      setError(null);
       try {
         const response = await getCustomers({ page, limit, search });
+        console.log("Customer API response:", response); // Debug log
+        
         if (response.success) {
-          setCustomers(response.data.customers);
+          setCustomers(response.data.customers || []);
           setTotalPages(Math.ceil(response.data.pagination.total / limit));
+        } else {
+          console.error("API returned error:", response);
+          setError("Failed to load customers");
         }
       } catch (error) {
         console.error('Error fetching customers:', error);
+        setError("An error occurred while loading customers");
       } finally {
         setLoading(false);
       }
@@ -57,6 +66,20 @@ const CustomerList = ({ onSelectCustomer, selectedCustomerId }) => {
 
   const handlePageChange = (event, value) => {
     setPage(value);
+  };
+
+  // Helper function to safely get customer display name
+  const getCustomerDisplayName = (customer) => {
+    if (!customer) return 'Unknown';
+    
+    // Try name field first
+    if (customer.name) return customer.name;
+    
+    // Fallback to code
+    if (customer.code) return customer.code;
+    
+    // If both are missing, use ID or "Unknown Customer"
+    return customer._id ? `Customer #${customer._id.toString().slice(-6)}` : 'Unknown Customer';
   };
 
   return (
@@ -81,6 +104,12 @@ const CustomerList = ({ onSelectCustomer, selectedCustomerId }) => {
           size="small"
         />
         
+        {error && (
+          <Box sx={{ color: 'error.main', mt: 1, mb: 1 }}>
+            <Typography variant="body2">{error}</Typography>
+          </Box>
+        )}
+        
         {loading ? (
           <Box display="flex" justifyContent="center" alignItems="center" height={400}>
             <CircularProgress />
@@ -94,7 +123,10 @@ const CustomerList = ({ onSelectCustomer, selectedCustomerId }) => {
                     <ListItem 
                       button 
                       selected={selectedCustomerId === customer._id}
-                      onClick={() => onSelectCustomer(customer)}
+                      onClick={() => {
+                        console.log("Selected customer:", customer); // Debug log
+                        onSelectCustomer(customer);
+                      }}
                     >
                       <ListItemAvatar>
                         <Avatar>
@@ -102,11 +134,12 @@ const CustomerList = ({ onSelectCustomer, selectedCustomerId }) => {
                         </Avatar>
                       </ListItemAvatar>
                       <ListItemText 
-                        primary={customer.name} 
+                        primary={getCustomerDisplayName(customer)}
                         secondary={
                           <>
                             {customer.phone && <Typography component="span" variant="body2" display="block">{customer.phone}</Typography>}
                             {customer.email && <Typography component="span" variant="body2" color="text.secondary">{customer.email}</Typography>}
+                            {!customer.phone && !customer.email && <Typography component="span" variant="body2" color="text.secondary">{customer.customerType || 'No contact info'}</Typography>}
                           </>
                         } 
                       />

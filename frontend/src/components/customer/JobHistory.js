@@ -1,3 +1,4 @@
+// File: frontend/src/components/customer/JobHistory.js
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -14,7 +15,8 @@ import {
   Chip,
   Paper,
   Pagination,
-  Rating
+  Rating,
+  Alert
 } from '@mui/material';
 import { getCustomerJobs } from '../../services/api';
 
@@ -34,34 +36,55 @@ const getStatusColor = (status) => {
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleString();
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    return date.toLocaleString();
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return 'Error';
+  }
 };
 
 const JobHistory = ({ customerId, onSelectJob }) => {
   const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 10;
 
   useEffect(() => {
+    // Reset state when customer changes
     if (!customerId) {
       setJobs([]);
       setLoading(false);
+      setError(null);
       return;
     }
 
+    // Convert ObjectId to string if it's an object
+    const customerIdStr = typeof customerId === 'object' ? customerId.toString() : customerId;
+    
     const fetchJobs = async () => {
       setLoading(true);
+      setError(null);
       try {
-        const response = await getCustomerJobs(customerId, { page, limit });
+        console.log(`Fetching jobs for customer ID: ${customerIdStr}`);
+        const response = await getCustomerJobs(customerIdStr, { page, limit });
+        
         if (response.success) {
-          setJobs(response.data.jobs);
+          console.log("Jobs data received:", response.data);
+          setJobs(response.data.jobs || []);
           setTotalPages(Math.ceil(response.data.pagination.total / limit));
+        } else {
+          console.error("API returned error:", response);
+          setError("Failed to load job history");
         }
       } catch (error) {
         console.error('Error fetching customer jobs:', error);
+        setError(`An error occurred while loading jobs: ${error.message}`);
       } finally {
         setLoading(false);
       }
@@ -83,6 +106,10 @@ const JobHistory = ({ customerId, onSelectJob }) => {
           <Box display="flex" justifyContent="center" alignItems="center" height={300}>
             <Typography color="text.secondary">Select a customer to view job history</Typography>
           </Box>
+        ) : error ? (
+          <Alert severity="error" sx={{ my: 2 }}>
+            {error}
+          </Alert>
         ) : loading ? (
           <Box display="flex" justifyContent="center" alignItems="center" height={300}>
             <CircularProgress />
@@ -109,22 +136,25 @@ const JobHistory = ({ customerId, onSelectJob }) => {
                       <TableRow
                         hover
                         key={job._id}
-                        onClick={() => onSelectJob(job)}
+                        onClick={() => {
+                          console.log("Selected job:", job);
+                          onSelectJob(job);
+                        }}
                         sx={{ cursor: 'pointer' }}
                       >
                         <TableCell>{job.jobNo}</TableCell>
                         <TableCell>
                           <Chip 
-                            label={job.status} 
+                            label={job.status || 'N/A'} 
                             color={getStatusColor(job.status)} 
                             size="small" 
                           />
                         </TableCell>
-                        <TableCell>{job.type}</TableCell>
-                        <TableCell>{job.locationName}</TableCell>
+                        <TableCell>{job.type || 'N/A'}</TableCell>
+                        <TableCell>{job.locationName || 'N/A'}</TableCell>
                         <TableCell>{formatDate(job.createdAt)}</TableCell>
                         <TableCell>{formatDate(job.closeTime)}</TableCell>
-                        <TableCell>{job.technicianNames}</TableCell>
+                        <TableCell>{job.technicianNames || 'N/A'}</TableCell>
                         <TableCell>
                           {job.reviewScore ? (
                             <Rating 
@@ -142,7 +172,7 @@ const JobHistory = ({ customerId, onSelectJob }) => {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={8} align="center">
-                        No job history found
+                        No job history found for this customer
                       </TableCell>
                     </TableRow>
                   )}

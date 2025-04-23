@@ -60,38 +60,176 @@ export const getCustomers = async (params = {}) => {
   if (params.search) queryParams.append('search', params.search);
   
   try {
+    console.log(`Fetching customers with params: ${queryParams.toString()}`);
     const response = await api.get(`/customers?${queryParams.toString()}`);
+    
+    // Validate and process response data
+    if (response.data && response.data.success) {
+      // Ensure customers array exists
+      if (!response.data.data || !Array.isArray(response.data.data.customers)) {
+        console.warn("API returned success but customers array is missing or invalid");
+        response.data.data = {
+          ...response.data.data,
+          customers: []
+        };
+      }
+      
+      // Ensure pagination data exists
+      if (!response.data.data.pagination) {
+        response.data.data.pagination = {
+          total: 0,
+          page: parseInt(params.page) || 1,
+          limit: parseInt(params.limit) || 20,
+          pages: 0
+        };
+      }
+      
+      // Process customer data to ensure required fields
+      response.data.data.customers = response.data.data.customers.map(customer => {
+        // Ensure customer has an ID
+        if (!customer._id) {
+          console.warn("Customer missing _id:", customer);
+        }
+        
+        // Ensure customer has a name or fallback
+        if (!customer.name && !customer.code) {
+          console.warn("Customer missing name and code:", customer);
+        }
+        
+        return customer;
+      });
+    }
+    
     return response.data;
   } catch (error) {
     console.error('Error fetching customers:', error);
-    throw error;
+    // Return a structured error response
+    return {
+      success: false,
+      error: error.message || 'Failed to fetch customers',
+      data: {
+        customers: [],
+        pagination: {
+          total: 0,
+          page: parseInt(params.page) || 1,
+          limit: parseInt(params.limit) || 20,
+          pages: 0
+        }
+      }
+    };
   }
 };
 
+
 export const getCustomerJobs = async (customerId, params = {}) => {
+  // Validate customerId
+  if (!customerId) {
+    console.error('Customer ID is required to fetch jobs');
+    return {
+      success: false,
+      error: 'Customer ID is required',
+      data: { jobs: [], pagination: { total: 0, page: 1, limit: 10, pages: 0 } }
+    };
+  }
+  
   const queryParams = new URLSearchParams();
   
   if (params.page) queryParams.append('page', params.page);
   if (params.limit) queryParams.append('limit', params.limit);
   
   try {
+    console.log(`Fetching jobs for customer ${customerId} with params: ${queryParams.toString()}`);
     const response = await api.get(`/customers/${customerId}/jobs?${queryParams.toString()}`);
+    
+    // Validate and process response data
+    if (response.data && response.data.success) {
+      // Ensure jobs array exists
+      if (!response.data.data || !Array.isArray(response.data.data.jobs)) {
+        console.warn("API returned success but jobs array is missing or invalid");
+        response.data.data = {
+          ...response.data.data,
+          jobs: []
+        };
+      }
+      
+      // Ensure pagination data exists
+      if (!response.data.data.pagination) {
+        response.data.data.pagination = {
+          total: 0,
+          page: parseInt(params.page) || 1,
+          limit: parseInt(params.limit) || 10,
+          pages: 0
+        };
+      }
+    }
+    
     return response.data;
   } catch (error) {
-    console.error('Error fetching customer jobs:', error);
-    throw error;
+    console.error(`Error fetching customer jobs for ${customerId}:`, error);
+    // Return a structured error response
+    return {
+      success: false,
+      error: error.message || 'Failed to fetch customer jobs',
+      data: {
+        jobs: [],
+        pagination: {
+          total: 0,
+          page: parseInt(params.page) || 1,
+          limit: parseInt(params.limit) || 10,
+          pages: 0
+        }
+      }
+    };
   }
 };
 
 export const getJobDetails = async (customerId, jobId) => {
-  try {
-    const response = await api.get(`/customers/${customerId}/jobs/${jobId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching job details:', error);
-    throw error;
-  }
-};
+    // Validate parameters
+    if (!customerId || !jobId) {
+      console.error('Customer ID and Job ID are required to fetch job details');
+      return {
+        success: false,
+        error: 'Customer ID and Job ID are required',
+        data: { jobDetails: null, timeline: [] }
+      };
+    }
+    
+    try {
+      console.log(`Fetching job details for customer ${customerId}, job ${jobId}`);
+      const response = await api.get(`/customers/${customerId}/jobs/${jobId}`);
+      
+      // Validate and process response data
+      if (response.data && response.data.success) {
+        // Ensure jobDetails exists
+        if (!response.data.data || !response.data.data.jobDetails) {
+          console.warn("API returned success but jobDetails is missing or invalid");
+          response.data.data = {
+            ...response.data.data,
+            jobDetails: null,
+            timeline: []
+          };
+        }
+        
+        // Ensure timeline array exists
+        if (!response.data.data.timeline || !Array.isArray(response.data.data.timeline)) {
+          response.data.data.timeline = [];
+        }
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching job details for customer ${customerId}, job ${jobId}:`, error);
+      // Return a structured error response
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch job details',
+        data: {
+          jobDetails: null,
+          timeline: []
+        }
+      };
+    }
+  };
 
 // Analytics API calls
 export const getTechnicianPerformance = async (params = {}) => {

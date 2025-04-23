@@ -1,4 +1,4 @@
-// src/App.js - Here's the corrected version
+// File: frontend/src/App.js
 import React, { useState, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Box, CssBaseline, Toolbar } from '@mui/material';
@@ -12,6 +12,8 @@ import Sidebar from './components/layout/Sidebar';
 // Pages
 import Dashboard from './pages/Dashboard';
 import CustomerView from './pages/CustomerView';
+import TechnicianPerformance from './pages/TechnicianPerformance';
+import MapView from './pages/MapView';
 
 const App = () => {
   const [drawerOpen, setDrawerOpen] = useState(true);
@@ -217,8 +219,8 @@ const App = () => {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/customers" element={<CustomerView />} />
-                <Route path="/technicians" element={<div>Technician Management (Coming Soon)</div>} />
-                <Route path="/map" element={<div>Map View (Coming Soon)</div>} />
+                <Route path="/technicians" element={<TechnicianPerformance />} />
+                <Route path="/map" element={<MapView />} />
                 <Route path="/analytics" element={<div>Analytics (Coming Soon)</div>} />
                 <Route path="/settings" element={<div>Settings (Coming Soon)</div>} />
                 <Route path="*" element={<div>Page Not Found</div>} />

@@ -37,6 +37,13 @@ mongoose.connect(process.env.MONGODB_CONNECTION_STRING)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
+const corsOptions = {
+    origin: '*',  // Allow all origins for development
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+  };
+
 // Routes
 app.use('/api/jobs', jobRoutes);
 app.use('/api/customers', customerRoutes);
@@ -57,6 +64,8 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).send('Something broke!');
   });
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '30mb' }));
 
 // Start server
 app.listen(PORT, () => {
