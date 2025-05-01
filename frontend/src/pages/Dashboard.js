@@ -261,11 +261,11 @@ const Dashboard = () => {
           {/* Overview Tab */}
           {tabValue === 0 && (
             <>
-              {/* Status and Priority charts - full width, one per row */}
+              {/* Status and Priority charts */}
               <Grid container spacing={4} mb={5}>
                 <Grid item xs={12} md={6}>
                   <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '150ms' : '0ms' }}>
-                    <Box sx={{ height: 450, width: '100%' }}>
+                    <Box sx={{ height: 500, width: '100%' }}>
                       <StatusPieChart 
                         data={dashboardData?.distributions?.status || []} 
                         title="Job Status Distribution" 
@@ -274,27 +274,27 @@ const Dashboard = () => {
                   </Fade>
                 </Grid>
                 
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6}>
                   <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '300ms' : '0ms' }}>
-                    <Box sx={{ height: 450, width: '100%' }}>
+                    <Box sx={{ height: 500, width: '100%' }}>
                       <BarChart 
                         data={dashboardData?.distributions?.priority || []} 
                         title="Job Priority Distribution" 
                         xAxisKey="_id"
                         dataKey="count"
                         color="#F59E0B" // Amber color
-                        height={420} // Explicitly set chart height
+                        height={470} // Explicitly set chart height
                       />
                     </Box>
                   </Fade>
                 </Grid>
               </Grid>
               
-              {/* Province and District charts - full width, one per row */}
+              {/* Province and District charts */}
               <Grid container spacing={4} mb={5}>
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6}>
                   <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '450ms' : '0ms' }}>
-                    <Box sx={{ height: 500, width: '100%' }}>
+                    <Box sx={{ height: 550, width: '100%' }}>
                       <BarChart 
                         data={dashboardData?.distributions?.province || []} 
                         title="Most Jobs by Province" 
@@ -302,15 +302,15 @@ const Dashboard = () => {
                         dataKey="count"
                         horizontal={true}
                         color="#3B82F6" // Blue color
-                        height={470} // Explicitly set chart height
+                        height={520} // Explicitly set chart height
                       />
                     </Box>
                   </Fade>
                 </Grid>
                 
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6}>
                   <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '600ms' : '0ms' }}>
-                    <Box sx={{ height: 500, width: '100%' }}>
+                    <Box sx={{ height: 550, width: '100%' }}>
                       <BarChart 
                         data={dashboardData?.distributions?.district || []} 
                         title="Most Jobs by District" 
@@ -318,7 +318,7 @@ const Dashboard = () => {
                         dataKey="count"
                         horizontal={true}
                         color="#10B981" // Green color
-                        height={470} // Explicitly set chart height
+                        height={520} // Explicitly set chart height
                       />
                     </Box>
                   </Fade>
@@ -478,7 +478,7 @@ const Dashboard = () => {
                   textTransform: 'none',
                   fontWeight: 600
                 }} 
-                onClick={() => window.location.href = '/technician-performance'}
+                onClick={() => window.location.href = '/technicians'}
               >
                 Go to Technician Performance
               </Button>
