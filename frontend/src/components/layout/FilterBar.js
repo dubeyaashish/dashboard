@@ -1,4 +1,4 @@
-// File: frontend/src/components/layout/FilterBar.js (Corrected Version)
+// File: frontend/src/components/layout/FilterBar.js (COMPLETE FILE with Multi-Select Technician)
 import React, { useState, useEffect } from 'react';
 import { 
   Paper, 
@@ -19,7 +19,6 @@ import {
   Typography,
   InputAdornment,
   Badge,
-  Autocomplete,
   CircularProgress
 } from '@mui/material';
 import { 
@@ -77,19 +76,8 @@ const FilterBar = () => {
   } = useFilters();
   
   const [expanded, setExpanded] = useState(false);
-  const [selectedTechnician, setSelectedTechnician] = useState(null);
   const theme = useTheme();
   const { t } = useLanguage();
-  
-  // Set selected technician when filters change
-  useEffect(() => {
-    if (filters.technicianId && filterOptions.technicians) {
-      const tech = filterOptions.technicians.find(t => t.id === filters.technicianId);
-      setSelectedTechnician(tech || null);
-    } else {
-      setSelectedTechnician(null);
-    }
-  }, [filters.technicianId, filterOptions.technicians]);
   
   const handleToggleExpand = () => {
     setExpanded(!expanded);
@@ -99,24 +87,6 @@ const FilterBar = () => {
     setDateRange(range);
   };
   
-  // Handle technician selection
-  const handleTechnicianChange = (event, newValue) => {
-    console.log('Technician selected:', newValue);
-    setSelectedTechnician(newValue);
-    
-    if (newValue) {
-      updateFilters({ 
-        technician: newValue.fullName,
-        technicianId: newValue.id
-      });
-    } else {
-      updateFilters({ 
-        technician: 'All',
-        technicianId: null
-      });
-    }
-  };
-  
   // Handle refresh filter options
   const handleRefreshFilters = () => {
     console.log('Refreshing filter options...');
@@ -124,7 +94,8 @@ const FilterBar = () => {
   };
   
   const activeFiltersCount = Object.entries(filters).filter(([key, value]) => {
-    if (key === 'startDate' || key === 'endDate' || key === 'page' || key === 'limit' || key === 'technicianId') return false;
+    if (key === 'startDate' || key === 'endDate' || key === 'page' || key === 'limit' || key === 'technicianId' || key === 'technicianIds') return false;
+    if (key === 'technicianIds' && Array.isArray(value) && value.length > 0) return true;
     return value !== 'All';
   }).length;
 
@@ -225,6 +196,7 @@ const FilterBar = () => {
       <Collapse in={true}>
         <Box px={3} py={2.5}>
           <Grid container spacing={2} alignItems="center">
+            {/* Start Date */}
             <Grid item xs={12} md={expanded ? 3 : 2.4}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
@@ -254,6 +226,7 @@ const FilterBar = () => {
               </LocalizationProvider>
             </Grid>
             
+            {/* End Date */}
             <Grid item xs={12} md={expanded ? 3 : 2.4}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
@@ -283,7 +256,8 @@ const FilterBar = () => {
               </LocalizationProvider>
             </Grid>
             
-            <Grid item xs={12} md={expanded ? 3 : 2.4}>
+            {/* Status Filter */}
+            <Grid item xs={12} md={expanded ? 2 : 1.6}>
               <FormControl 
                 fullWidth 
                 size="small"
@@ -329,7 +303,43 @@ const FilterBar = () => {
               </FormControl>
             </Grid>
             
-            <Grid item xs={12} md={expanded ? 3 : 2.4}>
+            {/* Type Filter */}
+            <Grid item xs={12} md={expanded ? 2 : 1.6}>
+              <FormControl 
+                fullWidth 
+                size="small"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    backgroundColor: alpha(theme.palette.background.paper, 0.5),
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.background.paper, 0.8),
+                    }
+                  }
+                }}
+              >
+                <InputLabel>{t("Job Type")}</InputLabel>
+                <Select
+                  value={filters.type}
+                  label={t("Job Type")}
+                  onChange={(e) => updateFilters({ type: e.target.value })}
+                >
+                  {filterOptions.types.map((type) => (
+                    <MenuItem key={type} value={type}>
+                      <Box display="flex" alignItems="center" width="100%">
+                        {type === 'All' && filters.type === 'All' && (
+                          <CheckIcon fontSize="small" sx={{ mr: 1, color: theme.palette.primary.main }} />
+                        )}
+                        {t(type)}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            {/* Priority Filter */}
+            <Grid item xs={12} md={expanded ? 2 : 1.6}>
               <FormControl 
                 fullWidth 
                 size="small"
@@ -375,106 +385,135 @@ const FilterBar = () => {
               </FormControl>
             </Grid>
             
-            {/* Technician Selector - Always visible */}
-            <Grid item xs={12} md={expanded ? 4 : 2.4}>
-              <Autocomplete
-                id="technician-selector"
-                options={filterOptions.technicians || []}
-                getOptionLabel={(option) => option.displayName || option.fullName || `${option.firstName} ${option.lastName}`}
-                value={selectedTechnician}
-                onChange={handleTechnicianChange}
-                loading={filterLoading}
-                loadingText={t('Loading technicians...')}
-                noOptionsText={filterOptions.technicians?.length === 0 ? t('No technicians found') : t('Start typing to search...')}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={t('Technician')}
-                    size="small"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                        backgroundColor: alpha(theme.palette.background.paper, 0.5),
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.background.paper, 0.8),
-                        }
-                      }
-                    }}
-                    InputProps={{
-                      ...params.InputProps,
-                      startAdornment: (
-                        <>
-                          <InputAdornment position="start">
-                            <EngineeringIcon fontSize="small" color="action" />
-                          </InputAdornment>
-                          {params.InputProps.startAdornment}
-                        </>
-                      ),
-                      endAdornment: (
-                        <>
-                          {filterLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                  />
-                )}
-                renderOption={(props, option) => (
-                  <Box component="li" {...props}>
-                    <Box display="flex" flexDirection="column">
-                      <Typography variant="body2">
-                        {`${option.firstName} ${option.lastName}`}
-                        {option.code && (
-                          <Typography component="span" color="primary" sx={{ ml: 1 }}>
-                            ({option.code})
-                          </Typography>
-                        )}
-                      </Typography>
-                      {option.position && (
-                        <Typography variant="caption" color="text.secondary">
-                          {option.position} - {option.type}
-                        </Typography>
-                      )}
+            {/* MULTI-SELECT TECHNICIAN FILTER */}
+            <Grid item xs={12} md={expanded ? 3 : 2.4}>
+              <FormControl 
+                fullWidth 
+                size="small"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    backgroundColor: alpha(theme.palette.background.paper, 0.5),
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.background.paper, 0.8),
+                    }
+                  }
+                }}
+              >
+                <InputLabel>{t("Technicians")}</InputLabel>
+                <Select
+                  multiple
+                  value={filters.technicianIds || []}
+                  label={t("Technicians")}
+                  onChange={(e) => {
+                    const values = e.target.value;
+                    console.log('Multiple technicians selected:', values);
+                    
+                    if (values.length === 0 || values.includes('All')) {
+                      // If "All" is selected or nothing selected, clear all
+                      updateFilters({ 
+                        technicianIds: [],
+                        technician: 'All'
+                      });
+                    } else {
+                      // Update with selected technician IDs
+                      const selectedTechNames = values
+                        .map(id => {
+                          const tech = filterOptions.technicians.find(t => t.id === id);
+                          return tech ? tech.fullName : null;
+                        })
+                        .filter(name => name)
+                        .join(', ');
+                      
+                      updateFilters({ 
+                        technicianIds: values,
+                        technician: selectedTechNames || 'All'
+                      });
+                    }
+                  }}
+                  renderValue={(selected) => {
+                    if (selected.length === 0) {
+                      return t("All Technicians");
+                    }
+                    
+                    if (selected.length === 1) {
+                      const tech = filterOptions.technicians.find(t => t.id === selected[0]);
+                      return tech ? tech.fullName : t("1 Selected");
+                    }
+                    
+                    return `${selected.length} ${t("Technicians Selected")}`;
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      style: {
+                        maxHeight: 300,
+                        borderRadius: 8,
+                      },
+                    },
+                  }}
+                >
+                  {/* "All" option */}
+                  <MenuItem value="All">
+                    <Box display="flex" alignItems="center" width="100%">
+                      <CheckIcon 
+                        fontSize="small" 
+                        sx={{ 
+                          mr: 1, 
+                          color: (!filters.technicianIds || filters.technicianIds.length === 0) 
+                            ? theme.palette.primary.main 
+                            : 'transparent' 
+                        }} 
+                      />
+                      {t("All Technicians")}
                     </Box>
-                  </Box>
-                )}
-              />
+                  </MenuItem>
+                  
+                  {/* Individual technicians */}
+                  {filterOptions.technicians && filterOptions.technicians.length > 0 ? (
+                    filterOptions.technicians.map((tech) => (
+                      <MenuItem key={tech.id} value={tech.id}>
+                        <Box display="flex" alignItems="center" width="100%">
+                          <CheckIcon 
+                            fontSize="small" 
+                            sx={{ 
+                              mr: 1, 
+                              color: (filters.technicianIds && filters.technicianIds.includes(tech.id))
+                                ? theme.palette.primary.main 
+                                : 'transparent' 
+                            }} 
+                          />
+                          <Box display="flex" flexDirection="column" width="100%">
+                            <Typography variant="body2">
+                              {tech.fullName}
+                              {tech.code && (
+                                <Typography component="span" color="primary" sx={{ ml: 1 }}>
+                                  ({tech.code})
+                                </Typography>
+                              )}
+                            </Typography>
+                            {tech.position && (
+                              <Typography variant="caption" color="text.secondary">
+                                {tech.position}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <MenuItem disabled>
+                      <Typography variant="body2" color="text.secondary">
+                        {filterLoading ? t('Loading...') : t('No technicians found')}
+                      </Typography>
+                    </MenuItem>
+                  )}
+                </Select>
+              </FormControl>
             </Grid>
             
+            {/* Expanded filters */}
             {expanded && (
               <>
-                <Grid item xs={12} md={4}>
-                  <FormControl 
-                    fullWidth 
-                    size="small"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                        backgroundColor: alpha(theme.palette.background.paper, 0.5),
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.background.paper, 0.8),
-                        }
-                      }
-                    }}
-                  >
-                    <InputLabel>{t("Job Type")}</InputLabel>
-                    <Select
-                      value={filters.type}
-                      label={t("Job Type")}
-                      onChange={(e) => updateFilters({ type: e.target.value })}
-                    >
-                      {filterOptions.types.map((type) => (
-                        <MenuItem key={type} value={type}>
-                          {type === 'All' && filters.type === 'All' && (
-                            <CheckIcon fontSize="small" sx={{ mr: 1, color: theme.palette.primary.main }} />
-                          )}
-                          {t(type)}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                
                 <Grid item xs={12} md={4}>
                   <FormControl 
                     fullWidth 

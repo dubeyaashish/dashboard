@@ -1,35 +1,82 @@
-// File: frontend/src/components/dashboard/JobMap.js
+// File: frontend/src/components/dashboard/JobMap.js (FIXED VERSION)
 import React, { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, Typography, Box, CircularProgress, alpha, useTheme } from '@mui/material';
-import 'leaflet/dist/leaflet.css';
 
 const JobMap = ({ data, title, loading }) => {
   const mapRef = useRef(null);
   const leafletMap = useRef(null);
   const markersLayer = useRef(null);
   const [mapInitialized, setMapInitialized] = useState(false);
+  const [leafletLoaded, setLeafletLoaded] = useState(false);
   const theme = useTheme();
 
+  // Load Leaflet dynamically
   useEffect(() => {
-    // Import leaflet dynamically to avoid SSR issues
+    const loadLeaflet = async () => {
+      try {
+        // Check if Leaflet is already loaded
+        if (window.L) {
+          setLeafletLoaded(true);
+          return;
+        }
+
+        // Dynamically import Leaflet
+        const L = await import('leaflet');
+        
+        // Import marker cluster
+        await import('leaflet.markercluster');
+        
+        // Set default icon paths (IMPORTANT FIX)
+        delete L.Icon.Default.prototype._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+          iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+        });
+
+        // Make L available globally
+        window.L = L;
+        setLeafletLoaded(true);
+        console.log("Leaflet loaded successfully");
+      } catch (error) {
+        console.error("Error loading Leaflet:", error);
+      }
+    };
+
+    loadLeaflet();
+  }, []);
+
+  // Initialize map
+  useEffect(() => {
+    if (!leafletLoaded || !mapRef.current || mapInitialized) return;
+
     const initializeMap = async () => {
       try {
-        const L = await import('leaflet');
-        await import('leaflet.markercluster');
-        await import('leaflet.markercluster/dist/MarkerCluster.css');
-        await import('leaflet.markercluster/dist/MarkerCluster.Default.css');
+        const L = window.L;
         
-        if (!mapRef.current || mapInitialized) return;
+        // Initialize the map
+        leafletMap.current = L.map(mapRef.current, {
+          center: [13.7563, 100.5018], // Bangkok coordinates
+          zoom: 6,
+          zoomControl: true,
+          scrollWheelZoom: true
+        });
         
-        // Initialize the map if it doesn't exist
-        leafletMap.current = L.map(mapRef.current).setView([15.87, 100.99], 6);
-        
+        // Add tile layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 18
         }).addTo(leafletMap.current);
         
         // Initialize marker cluster
-        markersLayer.current = L.markerClusterGroup();
+        markersLayer.current = L.markerClusterGroup({
+          chunkedLoading: true,
+          spiderfyOnMaxZoom: false,
+          showCoverageOnHover: false,
+          zoomToBoundsOnClick: true,
+          maxClusterRadius: 50
+        });
+        
         leafletMap.current.addLayer(markersLayer.current);
         
         console.log("Map initialized successfully");
@@ -41,6 +88,7 @@ const JobMap = ({ data, title, loading }) => {
     
     initializeMap();
     
+    // Cleanup function
     return () => {
       if (leafletMap.current) {
         leafletMap.current.remove();
@@ -49,22 +97,23 @@ const JobMap = ({ data, title, loading }) => {
         setMapInitialized(false);
       }
     };
-  }, []);
+  }, [leafletLoaded, mapInitialized]);
   
+  // Update markers when data changes
   useEffect(() => {
-    const updateMarkers = async () => {
-      if (!mapInitialized || !markersLayer.current || !data || loading) return;
-      
+    if (!mapInitialized || !markersLayer.current || !data || loading || !window.L) return;
+    
+    const updateMarkers = () => {
       try {
-        const L = await import('leaflet');
+        const L = window.L;
         
         // Clear existing markers
         markersLayer.current.clearLayers();
         
-        // Status colors for markers - match Streamlit implementation
+        // Status colors for markers
         const statusColors = {
           'WAITINGJOB': '#FFA500', // orange
-          'WORKING': '#1E90FF',    // blue
+          'WORKING': '#1E90FF',    // blue  
           'PENDING': '#FFD700',    // yellow
           'COMPLETED': '#32CD32',  // green
           'CLOSED': '#006400',     // dark green
@@ -72,108 +121,100 @@ const JobMap = ({ data, title, loading }) => {
           'REVIEW': '#9932CC'      // purple
         };
         
-        console.log(`Adding ${data.length} markers to map`);
+        console.log(`Processing ${data.length} jobs for map markers`);
         
-        // Count of valid markers added
         let validMarkers = 0;
+        const bounds = L.latLngBounds();
         
-        // Add new markers
-        data.forEach(job => {
-          // Coordinates checks - match Streamlit implementation
+        // Add markers for each job
+        data.forEach((job, index) => {
+          // Extract coordinates
           let lat = null, lon = null;
           
-          if (job.location && job.location.coordinates) {
-            // Try to extract from location.coordinates array
-            if (Array.isArray(job.location.coordinates) && job.location.coordinates.length === 2) {
-              [lon, lat] = job.location.coordinates;
-            }
-          } else if (job.lon !== undefined && job.lat !== undefined) {
-            // Direct lon/lat properties
+          // Try different coordinate sources
+          if (job.locationCoordinates && Array.isArray(job.locationCoordinates) && job.locationCoordinates.length === 2) {
+            [lon, lat] = job.locationCoordinates;
+          } else if (job.location && job.location.coordinates && Array.isArray(job.location.coordinates) && job.location.coordinates.length === 2) {
+            [lon, lat] = job.location.coordinates;
+          } else if (job.coordinates && Array.isArray(job.coordinates) && job.coordinates.length === 2) {
+            [lon, lat] = job.coordinates;
+          } else if (job.lon && job.lat) {
             lon = job.lon;
             lat = job.lat;
           }
           
-          if (!lat || !lon || isNaN(parseFloat(lat)) || isNaN(parseFloat(lon))) {
-            return; // Skip invalid coordinates
+          // Validate coordinates
+          const latNum = parseFloat(lat);
+          const lonNum = parseFloat(lon);
+          
+          if (isNaN(latNum) || isNaN(lonNum) || latNum === 0 || lonNum === 0) {
+            console.log(`Invalid coordinates for job ${job.jobNo || index}: lat=${lat}, lon=${lon}`);
+            return;
           }
           
-          validMarkers++;
+          // Create marker
           const color = statusColors[job.status] || '#3388ff';
           
-          // Create custom pin marker like in Streamlit
-          const markerHtmlStyles = `
-            background-color: ${color};
-            width: 2rem;
-            height: 2rem;
-            display: block;
-            left: -1rem;
-            top: -1rem;
-            position: relative;
-            border-radius: 2rem 2rem 0;
-            transform: rotate(45deg);
-            border: 1px solid #FFFFFF;
-            box-shadow: 0 0 4px rgba(0,0,0,0.5);
-          `;
-          
-          const icon = L.divIcon({
-            className: "custom-pin",
-            iconAnchor: [0, 24],
-            labelAnchor: [-6, 0],
-            popupAnchor: [0, -36],
-            html: `<span style="${markerHtmlStyles}" />`
+          // Create custom marker icon
+          const markerIcon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div style="
+              background-color: ${color};
+              width: 20px;
+              height: 20px;
+              border-radius: 50%;
+              border: 2px solid white;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 10px;
+              font-weight: bold;
+              color: white;
+            "></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+            popupAnchor: [0, -10]
           });
           
-          // Format popup similar to Streamlit
+          // Create popup content
           const popupContent = `
-            <div style="font-family: Arial; width: 200px;">
-              <b>Job No:</b> ${job.jobNo || 'N/A'}<br>
-              <b>Status:</b> ${job.status || 'N/A'}<br>
-              <b>Type:</b> ${job.type || 'N/A'}<br>
-              <b>Location:</b> ${job.location?.name || 'N/A'}<br>
-              <b>Customer:</b> ${job.customerName || 'N/A'}<br>
-              <b>Technician:</b> ${job.technicianNames || 'N/A'}<br>
-              <b>Created:</b> ${job.createdAt ? new Date(job.createdAt).toLocaleString() : 'N/A'}
+            <div style="font-family: Arial, sans-serif; min-width: 200px;">
+              <h4 style="margin: 0 0 8px 0; color: #333;">${job.jobNo || 'N/A'}</h4>
+              <p style="margin: 4px 0;"><strong>Status:</strong> ${job.status || 'N/A'}</p>
+              <p style="margin: 4px 0;"><strong>Type:</strong> ${job.type || 'N/A'}</p>
+              <p style="margin: 4px 0;"><strong>Priority:</strong> ${job.priority || 'N/A'}</p>
+              <p style="margin: 4px 0;"><strong>Location:</strong> ${job.locationName || job.location?.name || 'N/A'}</p>
+              <p style="margin: 4px 0;"><strong>Province:</strong> ${job.locationProvince || job.location?.province || 'N/A'}</p>
+              <p style="margin: 4px 0;"><strong>Customer:</strong> ${job.customerName || 'N/A'}</p>
+              <p style="margin: 4px 0;"><strong>Technician:</strong> ${job.technicianNames || job.technician_names || 'N/A'}</p>
+              <p style="margin: 4px 0;"><strong>Created:</strong> ${job.createdAt ? new Date(job.createdAt).toLocaleString() : 'N/A'}</p>
             </div>
           `;
           
-          const marker = L.marker([lat, lon], { icon }).bindPopup(popupContent);
+          // Create and add marker
+          const marker = L.marker([latNum, lonNum], { icon: markerIcon })
+            .bindPopup(popupContent);
+          
           markersLayer.current.addLayer(marker);
+          bounds.extend([latNum, lonNum]);
+          validMarkers++;
         });
         
         console.log(`Added ${validMarkers} valid markers to map`);
         
-        // Fit bounds if we have markers
-        if (markersLayer.current.getLayers().length > 0) {
-          leafletMap.current.fitBounds(markersLayer.current.getBounds(), { padding: [50, 50] });
+        // Fit map to show all markers
+        if (validMarkers > 0) {
+          // Add some padding to the bounds
+          const paddedBounds = bounds.pad(0.1);
+          leafletMap.current.fitBounds(paddedBounds);
         } else {
-          // Default view if no markers
-          leafletMap.current.setView([15.87, 100.99], 6);
+          // Default view for Thailand if no markers
+          leafletMap.current.setView([13.7563, 100.5018], 6);
         }
         
-        // Add legend like in Streamlit
-        if (document.querySelector('.map-legend')) {
-          document.querySelector('.map-legend').remove();
-        }
-        
-        const legend = L.control({ position: 'bottomleft' });
-        legend.onAdd = function() {
-          const div = L.DomUtil.create('div', 'info legend map-legend');
-          div.style.backgroundColor = 'white';
-          div.style.padding = '10px';
-          div.style.border = '2px solid grey';
-          div.style.borderRadius = '5px';
-          
-          div.innerHTML = '<p><b>Job Status</b></p>';
-          Object.entries(statusColors).forEach(([status, color]) => {
-            div.innerHTML += `
-              <p><i style="background-color: ${color}; width: 10px; height: 10px; display: inline-block; border-radius: 50%;"></i> ${status}</p>
-            `;
-          });
-          
-          return div;
-        };
-        
-        legend.addTo(leafletMap.current);
+        // Add legend
+        addLegend(L, statusColors);
         
       } catch (error) {
         console.error("Error updating markers:", error);
@@ -182,110 +223,55 @@ const JobMap = ({ data, title, loading }) => {
     
     updateMarkers();
   }, [data, mapInitialized, loading]);
-  
-  // If there are no coordinates, show province-level aggregation like in Streamlit
-  const showProvinceAggregation = () => {
-    if (!mapInitialized || !data || data.length === 0) return;
+
+  // Add legend to map
+  const addLegend = (L, statusColors) => {
+    // Remove existing legend
+    if (window.mapLegend) {
+      leafletMap.current.removeControl(window.mapLegend);
+    }
     
-    const updateProvinceMarkers = async () => {
-      try {
-        const L = await import('leaflet');
-        
-        // Clear existing markers
-        markersLayer.current.clearLayers();
-        
-        // Group by province
-        const provinceGroups = {};
-        data.forEach(job => {
-          const province = job.location?.province || 'Unknown';
-          if (!provinceGroups[province]) {
-            provinceGroups[province] = {
-              count: 0,
-              coordinates: null
-            };
-          }
-          provinceGroups[province].count++;
-          
-          // Use first valid coordinates found for the province
-          if (!provinceGroups[province].coordinates) {
-            let lat = null, lon = null;
-            if (job.location?.coordinates?.length === 2) {
-              [lon, lat] = job.location.coordinates;
-            } else if (job.lat && job.lon) {
-              lat = job.lat;
-              lon = job.lon;
-            }
-            
-            if (lat && lon) {
-              provinceGroups[province].coordinates = [lat, lon];
-            }
-          }
-        });
-        
-        // Fallback coordinates for provinces
-        const provinceCoordinates = {
-          "Bangkok": [13.7563, 100.5018],
-          "Chiang Mai": [18.7883, 98.9853],
-          "Phuket": [7.9519, 98.3381],
-          "Chon Buri": [13.3611, 100.9847],
-          "Songkhla": [7.1756, 100.6142],
-          "Nakhon Ratchasima": [14.9801, 102.0978],
-          "Khon Kaen": [16.4419, 102.8360],
-          "Rayong": [12.6831, 101.2376],
-          "Udon Thani": [17.4138, 102.7870],
-          "Chiang Rai": [19.9105, 99.8406]
-        };
-        
-        // Get maximum count for scaling
-        const maxCount = Math.max(...Object.values(provinceGroups).map(g => g.count));
-        
-        // Add province circles
-        Object.entries(provinceGroups).forEach(([province, data]) => {
-          // Use provided coordinates or fallback
-          let coordinates = data.coordinates;
-          if (!coordinates && provinceCoordinates[province]) {
-            coordinates = provinceCoordinates[province];
-          }
-          
-          if (!coordinates) return;
-          
-          // Scale marker size based on count
-          const radius = 5 + (data.count / maxCount * 25);
-          
-          // Add circle marker
-          L.circleMarker(coordinates, {
-            radius: radius,
-            fillColor: '#3388ff',
-            color: '#ffffff',
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 0.6
-          })
-          .bindPopup(`<b>${province}</b>: ${data.count} jobs`)
-          .addTo(markersLayer.current);
-          
-          // Add text label
-          L.divIcon({
-            html: `<div style="font-weight: bold; font-size: ${10 + data.count / maxCount * 6}px; text-align: center;">${province}</div>`,
-            className: 'province-label',
-            iconSize: [120, 20],
-            iconAnchor: [60, 10]
-          });
-        });
-        
-        // Fit map to markers
-        if (markersLayer.current.getLayers().length > 0) {
-          leafletMap.current.fitBounds(markersLayer.current.getBounds(), { padding: [50, 50] });
-        }
-        
-      } catch (error) {
-        console.error("Error updating province markers:", error);
-      }
+    const legend = L.control({ position: 'bottomright' });
+    
+    legend.onAdd = function() {
+      const div = L.DomUtil.create('div', 'info legend');
+      div.style.cssText = `
+        background: white;
+        padding: 10px;
+        border: 2px solid #ccc;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        line-height: 16px;
+      `;
+      
+      let legendHTML = '<h4 style="margin: 0 0 8px 0;">Job Status</h4>';
+      
+      Object.entries(statusColors).forEach(([status, color]) => {
+        legendHTML += `
+          <div style="margin: 4px 0; display: flex; align-items: center;">
+            <div style="
+              width: 12px; 
+              height: 12px; 
+              background-color: ${color}; 
+              border-radius: 50%; 
+              margin-right: 8px; 
+              border: 1px solid #ccc;
+            "></div>
+            <span>${status}</span>
+          </div>
+        `;
+      });
+      
+      div.innerHTML = legendHTML;
+      return div;
     };
     
-    updateProvinceMarkers();
+    legend.addTo(leafletMap.current);
+    window.mapLegend = legend;
   };
-  
+
   return (
     <Card 
       sx={{ 
@@ -326,20 +312,49 @@ const JobMap = ({ data, title, loading }) => {
         {loading ? (
           <Box display="flex" justifyContent="center" alignItems="center" height="calc(100% - 30px)">
             <CircularProgress />
+            <Typography variant="body2" sx={{ ml: 2 }}>Loading map...</Typography>
+          </Box>
+        ) : !leafletLoaded ? (
+          <Box display="flex" justifyContent="center" alignItems="center" height="calc(100% - 30px)">
+            <CircularProgress />
+            <Typography variant="body2" sx={{ ml: 2 }}>Loading map library...</Typography>
           </Box>
         ) : (
           <Box 
             ref={mapRef} 
             sx={{ 
-              height: title ? 'calc(100% - 30px)' : '100%', 
+              height: title ? 'calc(100% - 50px)' : '100%', 
               width: '100%', 
               minHeight: 450,
               bgcolor: alpha(theme.palette.background.default, 0.5),
               borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-              overflow: 'hidden'
+              overflow: 'hidden',
+              '& .leaflet-container': {
+                height: '100%',
+                width: '100%',
+                borderRadius: 'inherit'
+              }
             }} 
           />
+        )}
+        
+        {!loading && data && data.length === 0 && (
+          <Box 
+            display="flex" 
+            justifyContent="center" 
+            alignItems="center" 
+            height="200px"
+            sx={{ 
+              border: `1px dashed ${alpha(theme.palette.divider, 0.3)}`,
+              borderRadius: 2,
+              mt: 2
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              No job locations to display
+            </Typography>
+          </Box>
         )}
       </CardContent>
     </Card>

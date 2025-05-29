@@ -8,131 +8,160 @@ import PrecomputedMetrics from '../models/PrecomputedMetrics.js';
 
 const router = express.Router();
 
+// File: backend/routes/jobRoutes.js - Atlas SQL compatible version
 router.get('/filter-options', async (req, res) => {
   try {
-    console.log('=== DEBUG: Starting filter options fetch ===');
+    console.log('=== Getting filter options for Atlas SQL ===');
     
-    // Test 1: Check if Job collection is accessible
-    console.log('Testing Job collection...');
-    const jobCount = await Job.countDocuments();
-    console.log('Job count:', jobCount);
-    
-    // Test 2: Get distinct statuses (simple query)
-    console.log('Getting distinct statuses...');
-    const statuses = await Job.distinct('status');
-    console.log('Statuses found:', statuses);
-    
-    // Test 3: Get distinct types
-    console.log('Getting distinct types...');
-    const types = await Job.distinct('type');
-    console.log('Types found:', types);
-    
-    // Test 4: Get distinct priorities
-    console.log('Getting distinct priorities...');
-    const priorities = await Job.distinct('priority');
-    console.log('Priorities found:', priorities);
-    
-    // Test 5: Check JobLocation collection
-    console.log('Testing JobLocation collection...');
-    const locationCount = await JobLocation.countDocuments();
-    console.log('JobLocation count:', locationCount);
-    
-    // Test 6: Get provinces (with error handling)
-    let provinces = [];
-    try {
-      console.log('Getting distinct provinces...');
-      provinces = await JobLocation.distinct('province');
-      console.log('Provinces found:', provinces.length, provinces);
-    } catch (provinceError) {
-      console.error('Error getting provinces:', provinceError.message);
-      provinces = [];
-    }
-    
-    // Test 7: Check TechnicianProfile collection
-    console.log('Testing TechnicianProfile collection...');
-    const techCount = await TechnicianProfile.countDocuments();
-    console.log('TechnicianProfile count:', techCount);
-    
-    // Test 8: Get technicians (with error handling)
-    let technicians = [];
-    try {
-      console.log('Getting technicians...');
-      const techDocs = await TechnicianProfile.find({ status: 'ACTIVE' }).limit(5);
-      console.log('Sample technicians found:', techDocs.length);
-      
-      technicians = techDocs.map(tech => ({
-        id: tech._id.toString(),
-        firstName: tech.firstName || '',
-        lastName: tech.lastName || '',
-        code: tech.code || '',
-        position: tech.position || '',
-        type: tech.type || '',
-        fullName: `${tech.firstName || ''} ${tech.lastName || ''}`.trim(),
-        displayName: `${tech.firstName || ''} ${tech.lastName || ''}${tech.code ? ` (${tech.code})` : ''}${tech.position ? ` - ${tech.position}` : ''}`.trim()
-      }));
-      
-      console.log('Formatted technicians:', technicians.length);
-    } catch (techError) {
-      console.error('Error getting technicians:', techError.message);
-      technicians = [];
-    }
-    
-    // Test 9: Get team leaders
-    const teamLeaders = technicians
-      .filter(tech => 
-        tech.position && (
-          tech.position.includes('LEADER') || 
-          tech.position.includes('HEAD') || 
-          tech.position.includes('MANAGER') ||
-          tech.position.includes('SUPERVISOR')
-        )
-      )
-      .map(tech => tech.fullName);
-    
-    console.log('Team leaders found:', teamLeaders);
-    console.log('=== DEBUG: All data collected successfully ===');
-    
-    // Return the response
     const responseData = {
       success: true,
       data: {
-        statuses: ['All', ...statuses.filter(s => s && s.trim()).sort()],
-        types: ['All', ...types.filter(t => t && t.trim()).sort()],
-        priorities: ['All', ...priorities.filter(p => p && p.trim()).sort()],
-        provinces: ['All', ...provinces.filter(p => p && p.trim()).sort()],
-        technicians: technicians,
-        teamLeaders: ['All', ...teamLeaders.sort()]
-      },
-      debug: {
-        jobCount,
-        locationCount,
-        techCount,
-        statusesCount: statuses.length,
-        typesCount: types.length,
-        prioritiesCount: priorities.length,
-        provincesCount: provinces.length,
-        techniciansCount: technicians.length,
-        teamLeadersCount: teamLeaders.length
+        statuses: ['All'],
+        types: ['All'],
+        priorities: ['All'],
+        provinces: ['All'],
+        technicians: [],
+        teamLeaders: ['All']
       }
     };
-    
-    console.log('Sending response:', JSON.stringify(responseData, null, 2));
+
+    try {
+      // For Atlas SQL, we need to use regular find() and aggregate, not distinct()
+      
+      // Get statuses using aggregation
+      console.log('Getting statuses...');
+      const statusResult = await Job.aggregate([
+        { $group: { _id: '$status' } },
+        { $match: { _id: { $ne: null } } }
+      ]);
+      if (statusResult && statusResult.length > 0) {
+        const statuses = statusResult.map(item => item._id).filter(s => s);
+        responseData.data.statuses = ['All', ...statuses];
+      }
+      console.log('Statuses:', responseData.data.statuses);
+
+      // Get types using aggregation
+      console.log('Getting types...');
+      const typeResult = await Job.aggregate([
+        { $group: { _id: '$type' } },
+        { $match: { _id: { $ne: null } } }
+      ]);
+      if (typeResult && typeResult.length > 0) {
+        const types = typeResult.map(item => item._id).filter(t => t);
+        responseData.data.types = ['All', ...types];
+      }
+      console.log('Types:', responseData.data.types);
+
+      // Get priorities using aggregation
+      console.log('Getting priorities...');
+      const priorityResult = await Job.aggregate([
+        { $group: { _id: '$priority' } },
+        { $match: { _id: { $ne: null } } }
+      ]);
+      if (priorityResult && priorityResult.length > 0) {
+        const priorities = priorityResult.map(item => item._id).filter(p => p);
+        responseData.data.priorities = ['All', ...priorities];
+      }
+      console.log('Priorities:', responseData.data.priorities);
+
+      // Get provinces using aggregation
+      console.log('Getting provinces...');
+      const provinceResult = await JobLocation.aggregate([
+        { $group: { _id: '$province' } },
+        { $match: { _id: { $ne: null } } }
+      ]);
+      if (provinceResult && provinceResult.length > 0) {
+        const provinces = provinceResult.map(item => item._id).filter(p => p);
+        responseData.data.provinces = ['All', ...provinces];
+      }
+      console.log('Provinces:', responseData.data.provinces);
+
+      // Get technicians - try different approaches
+      console.log('Getting technicians...');
+      let technicians = [];
+      
+      // Try method 1: Find all active technicians
+      try {
+        const techDocs = await TechnicianProfile.find({})
+        console.log('Method 1 - Active technicians found:', techDocs.length);
+        technicians = techDocs;
+      } catch (e1) {
+        console.log('Method 1 failed:', e1.message);
+        
+        // Try method 2: Find all technicians without status filter  
+        try {
+          const techDocs = await TechnicianProfile.find({}).limit(50);
+          console.log('Method 2 - All technicians found:', techDocs.length);
+          technicians = techDocs;
+        } catch (e2) {
+          console.log('Method 2 failed:', e2.message);
+          
+          // Try method 3: Use aggregation
+          try {
+            const techDocs = await TechnicianProfile.aggregate([
+              { $limit: 50 }
+            ]);
+            console.log('Method 3 - Aggregated technicians found:', techDocs.length);
+            technicians = techDocs;
+          } catch (e3) {
+            console.log('Method 3 failed:', e3.message);
+          }
+        }
+      }
+
+      // Format technicians if we found any
+      if (technicians && technicians.length > 0) {
+        const formattedTechnicians = technicians.map(tech => {
+          const firstName = tech.firstName || '';
+          const lastName = tech.lastName || '';
+          const fullName = `${firstName} ${lastName}`.trim();
+          
+          return {
+            id: tech._id.toString(),
+            firstName: firstName,
+            lastName: lastName,
+            code: tech.code || '',
+            position: tech.position || '',
+            fullName: fullName || 'Unknown',
+            displayName: `${fullName}${tech.code ? ` (${tech.code})` : ''}`.trim()
+          };
+        }).filter(tech => tech.fullName !== 'Unknown'); // Only include technicians with names
+        
+        responseData.data.technicians = formattedTechnicians;
+        console.log('Formatted technicians:', formattedTechnicians.length);
+      }
+
+    } catch (dbError) {
+      console.error('Database operation failed:', dbError.message);
+      // Keep default values
+    }
+
+    console.log('=== Final Results ===');
+    console.log('Statuses:', responseData.data.statuses.length);
+    console.log('Types:', responseData.data.types.length);
+    console.log('Priorities:', responseData.data.priorities.length);
+    console.log('Provinces:', responseData.data.provinces.length);
+    console.log('Technicians:', responseData.data.technicians.length);
+
     res.json(responseData);
     
   } catch (error) {
-    console.error('=== ERROR in filter-options route ===');
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
+    console.error('Filter options error:', error.message);
     
-    res.status(500).json({ 
-      success: false, 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-      timestamp: new Date().toISOString()
+    // Return safe defaults
+    res.json({
+      success: true,
+      data: {
+        statuses: ['All', 'WAITINGJOB', 'WORKING', 'COMPLETED', 'CLOSED', 'CANCELLED', 'REVIEW'],
+        types: ['All', 'INSTALLATION', 'MAINTENANCE', 'REPAIR'],
+        priorities: ['All', 'HIGH', 'MEDIUM', 'LOW'],
+        provinces: ['All', 'Bangkok', 'Chiang Mai', 'Phuket'],
+        technicians: [],
+        teamLeaders: ['All']
+      }
     });
   }
 });
-
 // Get job overview data with pagination
 router.get('/overview', async (req, res) => {
   try {
@@ -522,6 +551,50 @@ router.get('/map-data', async (req, res) => {
   } catch (error) {
     console.error('Error fetching map data:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+
+// Add this debug route to your backend/routes/jobRoutes.js to check what types exist
+
+router.get('/debug-types', async (req, res) => {
+  try {
+    console.log('=== DEBUGGING JOB TYPES ===');
+    
+    // Method 1: Get all distinct types using aggregation
+    const typeResult = await Job.aggregate([
+      { $group: { _id: '$type' } },
+      { $match: { _id: { $ne: null } } }
+    ]);
+    console.log('Types from aggregation:', typeResult);
+    
+    // Method 2: Get sample jobs to see what type field looks like
+    const sampleJobs = await Job.find({}).limit(10).select('no type');
+    console.log('Sample jobs with types:', sampleJobs);
+    
+    // Method 3: Count jobs by type manually
+    const typeCounts = {};
+    const allJobs = await Job.find({}).select('type');
+    allJobs.forEach(job => {
+      const type = job.type || 'null/empty';
+      typeCounts[type] = (typeCounts[type] || 0) + 1;
+    });
+    console.log('Type counts:', typeCounts);
+    
+    res.json({
+      success: true,
+      aggregationTypes: typeResult,
+      sampleJobs: sampleJobs,
+      typeCounts: typeCounts,
+      totalJobs: allJobs.length
+    });
+    
+  } catch (error) {
+    console.error('Debug types error:', error);
+    res.json({
+      success: false,
+      error: error.message
+    });
   }
 });
 

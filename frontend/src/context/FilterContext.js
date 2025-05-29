@@ -1,8 +1,8 @@
-// File: frontend/src/context/FilterContext.js (Updated to fetch real data)
+// File: frontend/src/context/FilterContext.js (COMPLETE FILE)
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { getFilterOptions } from '../services/api';
 
-// Initial filter values
+// Initial filter values - WITH MULTI-SELECT TECHNICIANS
 const initialFilters = {
   startDate: new Date(new Date().setDate(new Date().getDate() - 30)),
   endDate: new Date(),
@@ -12,7 +12,8 @@ const initialFilters = {
   province: 'All',
   teamLeader: 'All',
   technician: 'All',
-  technicianId: null,
+  technicianId: null,         // Keep for backward compatibility
+  technicianIds: [],          // NEW: Array for multi-select
   page: 1,
   limit: 10
 };
@@ -49,6 +50,8 @@ export const FilterProvider = ({ children }) => {
         
         if (response.success) {
           console.log('Filter options loaded successfully:', response.data);
+          console.log('Types received:', response.data.types);
+          console.log('Technicians received:', response.data.technicians?.length);
           setFilterOptions(response.data);
         } else {
           console.error('Failed to load filter options:', response);
@@ -113,6 +116,8 @@ export const FilterProvider = ({ children }) => {
       
       if (response.success) {
         console.log('Filter options refreshed:', response.data);
+        console.log('Types refreshed:', response.data.types);
+        console.log('Technicians refreshed:', response.data.technicians?.length);
         setFilterOptions(response.data);
       }
     } catch (error) {

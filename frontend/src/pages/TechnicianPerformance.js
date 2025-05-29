@@ -1,4 +1,4 @@
-// File: frontend/src/pages/TechnicianPerformance.js (Updated with Jobs Table)
+// File: frontend/src/pages/TechnicianPerformance.js (FIXED - Line 382 key issue)
 import React, { useState, useEffect } from 'react';
 import { 
   Container, 
@@ -321,8 +321,8 @@ const TechnicianPerformance = () => {
                             </TableHead>
                             <TableBody>
                               {performanceData?.performanceSummary?.length > 0 ? (
-                                performanceData.performanceSummary.map((tech) => (
-                                  <TableRow key={tech._id}>
+                                performanceData.performanceSummary.map((tech, index) => (
+                                  <TableRow key={`tech-summary-${tech._id || index}`}>
                                     <TableCell>{tech.technicianName}</TableCell>
                                     <TableCell align="center">
                                       <Rating value={tech.metrics.overall} precision={0.1} readOnly size="small" />
@@ -381,8 +381,8 @@ const TechnicianPerformance = () => {
                             </TableHead>
                             <TableBody>
                               {performanceData?.recentReviews?.length > 0 ? (
-                                performanceData.recentReviews.map((review) => (
-                                  <TableRow key={review._id}>
+                                performanceData.recentReviews.map((review, index) => (
+                                  <TableRow key={`review-${review._id || index}`}>
                                     <TableCell>{review.jobNo || t('N/A')}</TableCell>
                                     <TableCell>{review.technicianName}</TableCell>
                                     <TableCell align="center">{review.time}</TableCell>

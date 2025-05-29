@@ -2,6 +2,7 @@
 import express from 'express';
 import Job from '../models/Job.js';
 import CustomerReview from '../models/CustomerReview.js';
+import mongoose from 'mongoose';
 import TechnicianProfile from '../models/TechnicianProfile.js';
 import PrecomputedMetrics from '../models/PrecomputedMetrics.js';
 
@@ -274,14 +275,16 @@ router.get('/geographic', async (req, res) => {
   }
 });
 
-// Add this route to backend/routes/analyticRoutes.js
 
-// Get jobs by technician with detailed information
+// File: backend/routes/analyticRoutes.js - QUICK FIX - Go back to aggregation but simplified
+
+// File: backend/routes/analyticRoutes.js - Fix the technician-jobs route to include customer data
+
 router.get('/technician-jobs', async (req, res) => {
   try {
     const { startDate, endDate, technicianId, status, type, priority, page = 1, limit = 10 } = req.query;
     
-    // Convert string dates to Date objects
+    // Convert dates
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate) : new Date();
     
@@ -290,91 +293,54 @@ router.get('/technician-jobs', async (req, res) => {
       createdAt: { $gte: start, $lte: end }
     };
     
-    // Add filters
     if (status && status !== 'All') matchCriteria.status = status;
     if (type && type !== 'All') matchCriteria.type = type;
     if (priority && priority !== 'All') matchCriteria.priority = priority;
     
-    // Technician filter - match if technician ID is in the array
     if (technicianId && technicianId !== 'All') {
       matchCriteria.technicianProfileIDs = new mongoose.Types.ObjectId(technicianId);
     }
     
-    // Main aggregation pipeline
+    // FIXED AGGREGATION PIPELINE WITH CUSTOMER DATA
     const pipeline = [
-      // STEP 1: Match jobs by criteria
       { $match: matchCriteria },
       
-      // STEP 2: Lookup job location details
+      // Get location data
       {
         $lookup: {
           from: 'JobLocation',
           localField: 'jobLocationID',
           foreignField: '_id',
-          as: 'location',
-          pipeline: [
-            {
-              $project: {
-                name: 1,
-                province: 1,
-                district: 1,
-                address: 1,
-                contactFirstName: 1,
-                contactLastName: 1,
-                contactPhone: 1,
-                customerID: 1
-              }
-            }
-          ]
+          as: 'location'
         }
       },
-      { $unwind: { path: '$location', preserveNullAndEmptyArrays: true } },
       
-      // STEP 3: Lookup customer details through location
+      // Get customer data through location
       {
         $lookup: {
           from: 'Customer',
           localField: 'location.customerID',
           foreignField: '_id',
-          as: 'customer',
-          pipeline: [
-            {
-              $project: {
-                name: 1,
-                phone: 1,
-                email: 1
-              }
-            }
-          ]
+          as: 'customer'
         }
       },
-      { $unwind: { path: '$customer', preserveNullAndEmptyArrays: true } },
       
-      // STEP 4: Lookup technician details
+      // Get technician data  
       {
         $lookup: {
           from: 'TechnicianProfile',
           localField: 'technicianProfileIDs',
           foreignField: '_id',
-          as: 'technicians',
-          pipeline: [
-            {
-              $project: {
-                firstName: 1,
-                lastName: 1,
-                code: 1,
-                position: 1,
-                type: 1
-              }
-            }
-          ]
+          as: 'technicians'
         }
       },
       
-      // STEP 5: Sort by creation date (newest first)
+      // Sort and paginate
       { $sort: { createdAt: -1 } },
+      { $skip: (parseInt(page) - 1) * parseInt(limit) },
+      { $limit: parseInt(limit) },
       
-      // STEP 6: Project final fields
+      // Format the output with customer data
       {
         $project: {
           _id: 1,
@@ -385,197 +351,119 @@ router.get('/technician-jobs', async (req, res) => {
           createdAt: 1,
           updatedAt: 1,
           appointmentTime: 1,
-          isManualFindTechnician: 1,
-          isSendRequest: 1,
-          isEditable: 1,
-          isQcJob: 1,
-          isReview: 1,
-          // Customer contact info
-          customerContact: {
-            name: {
-              $cond: {
-                if: { $eq: ['$customerContact.firstName', ''] },
-                then: {
-                  $cond: {
-                    if: '$customer.name',
-                    then: '$customer.name',
-                    else: 'N/A'
-                  }
-                },
-                else: {
-                  $concat: [
-                    { $ifNull: ['$customerContact.firstName', ''] },
-                    ' ',
-                    { $ifNull: ['$customerContact.lastName', ''] }
-                  ]
-                }
-              }
-            },
-            phone: {
-              $cond: {
-                if: { $ne: ['$customerContact.phone', ''] },
-                then: '$customerContact.phone',
-                else: '$customer.phone'
-              }
-            },
-            email: {
-              $cond: {
-                if: { $ne: ['$customerContact.email', ''] },
-                then: '$customerContact.email',
-                else: '$customer.email'
+          customerContact: 1,
+          // Location info
+          locationName: { $arrayElemAt: ['$location.name', 0] },
+          locationProvince: { $arrayElemAt: ['$location.province', 0] },
+          locationDistrict: { $arrayElemAt: ['$location.district', 0] },
+          locationAddress: { $arrayElemAt: ['$location.address', 0] },
+          // Customer info - FIXED
+          customerName: { $arrayElemAt: ['$customer.name', 0] },
+          customerPhone: { $arrayElemAt: ['$customer.phone', 0] },
+          customerEmail: { $arrayElemAt: ['$customer.email', 0] },
+          // Technician info
+          technicians: {
+            $map: {
+              input: '$technicians',
+              as: 'tech',
+              in: {
+                firstName: '$$tech.firstName',
+                lastName: '$$tech.lastName',
+                code: '$$tech.code',
+                position: '$$tech.position'
               }
             }
-          },
-          // Location info
-          location: {
-            name: '$location.name',
-            province: '$location.province',
-            district: '$location.district',
-            address: '$location.address',
-            contactName: {
-              $concat: [
-                { $ifNull: ['$location.contactFirstName', ''] },
-                ' ',
-                { $ifNull: ['$location.contactLastName', ''] }
-              ]
-            },
-            contactPhone: '$location.contactPhone'
-          },
-          // Technician info
-          technicians: 1,
-          technicianCount: { $size: '$technicians' }
+          }
         }
       }
     ];
     
-    // Count pipeline for pagination
+    // Count pipeline
     const countPipeline = [
       { $match: matchCriteria },
       { $count: 'total' }
     ];
     
-    // Add pagination to main pipeline
-    const paginatedPipeline = [
-      ...pipeline,
-      { $skip: (parseInt(page) - 1) * parseInt(limit) },
-      { $limit: parseInt(limit) }
-    ];
-    
-    // Execute both pipelines
+    // Execute both
     const [jobs, countResult] = await Promise.all([
-      Job.aggregate(paginatedPipeline),
+      Job.aggregate(pipeline),
       Job.aggregate(countPipeline)
     ]);
     
-    // Process technician names
+    // Process results with customer data
     const processedJobs = jobs.map(job => {
-      const technicians = job.technicians || [];
-      const technicianNames = technicians.map(tech => {
-        const name = `${tech.firstName || ''} ${tech.lastName || ''}`.trim();
-        const code = tech.code ? ` (${tech.code})` : '';
-        const position = tech.position ? ` - ${tech.position}` : '';
-        return `${name}${code}${position}`;
-      }).filter(name => name.length > 3); // Filter out empty or very short names
+      // Format technician names
+      const technicianNames = (job.technicians || [])
+        .map(tech => {
+          const name = `${tech.firstName || ''} ${tech.lastName || ''}`.trim();
+          const code = tech.code ? ` (${tech.code})` : '';
+          return name ? `${name}${code}` : null;
+        })
+        .filter(name => name)
+        .join(', ');
+      
+      // Get customer info - try multiple sources
+      let customerName = job.customerName; // From Customer collection
+      let customerPhone = job.customerPhone; // From Customer collection  
+      let customerEmail = job.customerEmail; // From Customer collection
+      
+      // Fallback to customerContact if Customer collection data is missing
+      if (!customerName && job.customerContact) {
+        if (job.customerContact.firstName || job.customerContact.lastName) {
+          customerName = `${job.customerContact.firstName || ''} ${job.customerContact.lastName || ''}`.trim();
+        }
+      }
+      
+      if (!customerPhone && job.customerContact?.phone) {
+        customerPhone = job.customerContact.phone;
+      }
+      
+      if (!customerEmail && job.customerContact?.email) {
+        customerEmail = job.customerContact.email;
+      }
       
       return {
-        ...job,
-        technicians: undefined, // Remove raw technician data
-        technicianNames: technicianNames.join(', ') || 'N/A',
-        technicianCount: technicians.length
+        _id: job._id,
+        jobNo: job.jobNo,
+        status: job.status,
+        type: job.type,
+        priority: job.priority,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+        appointmentTime: job.appointmentTime,
+        customerContact: {
+          name: customerName || 'N/A',
+          phone: customerPhone || '',
+          email: customerEmail || ''
+        },
+        location: {
+          name: job.locationName,
+          province: job.locationProvince,
+          district: job.locationDistrict,
+          address: job.locationAddress
+        },
+        technicianNames: technicianNames || 'N/A',
+        technicianCount: (job.technicians || []).length
       };
     });
     
     const total = countResult[0]?.total || 0;
     
-    // Get summary statistics
-    const summaryPipeline = [
-      { $match: matchCriteria },
-      {
-        $group: {
-          _id: null,
-          totalJobs: { $sum: 1 },
-          byStatus: {
-            $push: '$status'
-          },
-          byType: {
-            $push: '$type'
-          },
-          byPriority: {
-            $push: '$priority'
-          }
-        }
-      },
-      {
-        $project: {
-          totalJobs: 1,
-          statusCounts: {
-            $arrayToObject: {
-              $map: {
-                input: { $setUnion: ['$byStatus'] },
-                as: 'status',
-                in: {
-                  k: '$$status',
-                  v: {
-                    $size: {
-                      $filter: {
-                        input: '$byStatus',
-                        cond: { $eq: ['$$this', '$$status'] }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          typeCounts: {
-            $arrayToObject: {
-              $map: {
-                input: { $setUnion: ['$byType'] },
-                as: 'type',
-                in: {
-                  k: '$$type',
-                  v: {
-                    $size: {
-                      $filter: {
-                        input: '$byType',
-                        cond: { $eq: ['$$this', '$$type'] }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          priorityCounts: {
-            $arrayToObject: {
-              $map: {
-                input: { $setUnion: ['$byPriority'] },
-                as: 'priority',
-                in: {
-                  k: '$$priority',
-                  v: {
-                    $size: {
-                      $filter: {
-                        input: '$byPriority',
-                        cond: { $eq: ['$$this', '$$priority'] }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    ];
-    
-    const summaryResult = await Job.aggregate(summaryPipeline);
-    const summary = summaryResult[0] || {
-      totalJobs: 0,
+    // Summary
+    const summary = {
+      totalJobs: total,
       statusCounts: {},
       typeCounts: {},
       priorityCounts: {}
     };
+    
+    processedJobs.forEach(job => {
+      summary.statusCounts[job.status] = (summary.statusCounts[job.status] || 0) + 1;
+      summary.typeCounts[job.type] = (summary.typeCounts[job.type] || 0) + 1;
+      summary.priorityCounts[job.priority] = (summary.priorityCounts[job.priority] || 0) + 1;
+    });
+    
+    console.log(`Returning ${processedJobs.length} jobs with customer data`);
     
     res.json({
       success: true,
@@ -593,11 +481,15 @@ router.get('/technician-jobs', async (req, res) => {
     
   } catch (error) {
     console.error('Error fetching technician jobs:', error);
-    res.status(500).json({ 
+    res.json({ 
       success: false, 
-      error: error.message 
+      error: error.message,
+      data: {
+        jobs: [],
+        pagination: { total: 0, page: 1, limit: 10, pages: 0 },
+        summary: { totalJobs: 0, statusCounts: {}, typeCounts: {}, priorityCounts: {} }
+      }
     });
   }
 });
-
 export default router;

@@ -1,4 +1,5 @@
-// Create new file: frontend/src/components/technician/TechnicianJobsTable.js
+// File: frontend/src/components/technician/TechnicianJobsTable.js - Add Excel download
+
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -20,18 +21,77 @@ import {
   alpha,
   useTheme,
   Tooltip,
-  IconButton
+  IconButton,
+  Button
 } from '@mui/material';
 import {
   Visibility as VisibilityIcon,
   Person as PersonIcon,
   LocationOn as LocationIcon,
-  Phone as PhoneIcon
+  Phone as PhoneIcon,
+  Download as DownloadIcon,
+  GetApp as GetAppIcon
 } from '@mui/icons-material';
 import { getTechnicianJobs } from '../../services/api';
 import { useLanguage } from '../../context/LanguageContext';
 
-// Status color mapping
+// Excel export utility function
+const exportToExcel = (data, filename = 'technician-jobs') => {
+  // Create CSV content
+  const headers = [
+    'Job No.',
+    'Status', 
+    'Type',
+    'Priority',
+    'Customer Name',
+    'Customer Phone',
+    'Customer Email',
+    'Location Name',
+    'Province',
+    'District',
+    'Address',
+    'Technicians',
+    'Technician Count',
+    'Appointment Time',
+    'Created Date',
+    'Updated Date'
+  ];
+  
+  const csvContent = [
+    headers.join(','),
+    ...data.map(job => [
+      job.jobNo || '',
+      job.status || '',
+      job.type || '',
+      job.priority || '',
+      job.customerContact?.name || '',
+      job.customerContact?.phone || '',
+      job.customerContact?.email || '',
+      job.location?.name || '',
+      job.location?.province || '',
+      job.location?.district || '',
+      job.location?.address || '',
+      job.technicianNames || '',
+      job.technicianCount || 0,
+      job.appointmentTime ? new Date(job.appointmentTime).toLocaleString() : '',
+      job.createdAt ? new Date(job.createdAt).toLocaleString() : '',
+      job.updatedAt ? new Date(job.updatedAt).toLocaleString() : ''
+    ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+  ].join('\n');
+  
+  // Create and download file
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+// Status and priority color functions (keep existing ones)
 const getStatusColor = (status) => {
   const statusColors = {
     'WAITINGJOB': 'warning',
@@ -42,22 +102,18 @@ const getStatusColor = (status) => {
     'CANCELLED': 'error',
     'REVIEW': 'secondary'
   };
-  
   return statusColors[status] || 'default';
 };
 
-// Priority color mapping
 const getPriorityColor = (priority) => {
   const priorityColors = {
     'HIGH': 'error',
     'MEDIUM': 'warning',
     'LOW': 'success'
   };
-  
   return priorityColors[priority] || 'default';
 };
 
-// Format date function
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
   try {
@@ -72,7 +128,9 @@ const formatDate = (dateString) => {
 
 const TechnicianJobsTable = ({ filters }) => {
   const [jobs, setJobs] = useState([]);
+  const [allJobs, setAllJobs] = useState([]); // Store all jobs for export
   const [loading, setLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -95,7 +153,7 @@ const TechnicianJobsTable = ({ filters }) => {
           status: filters.status,
           type: filters.type,
           priority: filters.priority,
-          page: page + 1, // API uses 1-based pagination
+          page: page + 1,
           limit: rowsPerPage
         });
         
@@ -116,11 +174,43 @@ const TechnicianJobsTable = ({ filters }) => {
       }
     };
 
-    // Only fetch if we have filters
     if (filters) {
       fetchJobs();
     }
   }, [filters, page, rowsPerPage, t]);
+
+  // Handle Excel export
+  const handleExcelExport = async () => {
+    setExportLoading(true);
+    try {
+      // Fetch ALL jobs for export (no pagination)
+      const response = await getTechnicianJobs({
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        technicianId: filters.technicianId,
+        status: filters.status,
+        type: filters.type,
+        priority: filters.priority,
+        page: 1,
+        limit: 10000 // Get all jobs
+      });
+      
+      if (response.success && response.data.jobs) {
+        const filename = `technician-jobs${filters.technicianId && filters.technicianId !== 'All' ? '_filtered' : ''}`;
+        exportToExcel(response.data.jobs, filename);
+        
+        // Show success message (optional)
+        console.log(`Exported ${response.data.jobs.length} jobs to Excel`);
+      } else {
+        setError(t("Failed to export jobs"));
+      }
+    } catch (error) {
+      console.error('Error exporting jobs:', error);
+      setError(t("An error occurred while exporting"));
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const handlePageChange = (event, newPage) => {
     setPage(newPage);
@@ -172,7 +262,7 @@ const TechnicianJobsTable = ({ filters }) => {
       }}
     >
       <CardContent sx={{ p: 0 }}>
-        {/* Header */}
+        {/* Header with Export Button */}
         <Box 
           p={2.5} 
           sx={{ 
@@ -203,19 +293,42 @@ const TechnicianJobsTable = ({ filters }) => {
             {t("Jobs by Technician")}
           </Typography>
 
-          {summary && (
-            <Box display="flex" gap={1}>
+          <Box display="flex" alignItems="center" gap={2}>
+            {summary && (
               <Chip 
                 label={`${t("Total")}: ${summary.totalJobs}`} 
                 size="small" 
                 color="primary"
                 sx={{ fontWeight: 600 }}
               />
-            </Box>
-          )}
+            )}
+            
+            {/* Excel Export Button */}
+            <Button
+              variant="contained"
+              color="success"
+              size="small"
+              startIcon={exportLoading ? <CircularProgress size={16} color="inherit" /> : <GetAppIcon />}
+              onClick={handleExcelExport}
+              disabled={exportLoading || jobs.length === 0}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 2,
+                py: 1,
+                '&:hover': {
+                  transform: 'translateY(-1px)',
+                  boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.3)}`,
+                }
+              }}
+            >
+              {exportLoading ? t('Exporting...') : t('Download Excel')}
+            </Button>
+          </Box>
         </Box>
 
-        {/* Summary Cards */}
+        {/* Summary Cards - Keep existing code */}
         {summary && summary.totalJobs > 0 && (
           <Box p={2} sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
             <Grid container spacing={2}>
@@ -269,7 +382,7 @@ const TechnicianJobsTable = ({ filters }) => {
           </Box>
         )}
 
-        {/* Table */}
+        {/* Table - Keep existing table code */}
         <TableContainer 
           component={Paper} 
           sx={{ 
@@ -297,10 +410,10 @@ const TechnicianJobsTable = ({ filters }) => {
             </TableHead>
             <TableBody>
               {jobs.length > 0 ? (
-                jobs.map((job) => (
+                jobs.map((job, index) => (
                   <TableRow
                     hover
-                    key={job._id}
+                    key={job._id || index}
                     sx={{ 
                       '&:nth-of-type(odd)': {
                         bgcolor: alpha(theme.palette.action.hover, 0.05),
@@ -399,7 +512,7 @@ const TechnicianJobsTable = ({ filters }) => {
           </Table>
         </TableContainer>
 
-        {/* Pagination */}
+        {/* Pagination - Keep existing pagination code */}
         {jobs.length > 0 && (
           <TablePagination
             rowsPerPageOptions={[5, 10, 25, 50]}
