@@ -1,4 +1,4 @@
-// Modified frontend/src/services/api.js with proper exports
+// File: frontend/src/services/api.js (Complete fixed version)
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -9,6 +9,47 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Get filter options from backend
+export const getFilterOptions = async () => {
+  try {
+    console.log('Fetching filter options from backend...');
+    const response = await api.get('/jobs/filter-options');
+    
+    if (response.data && response.data.success) {
+      console.log('Filter options received:', response.data.data);
+      return response.data;
+    } else {
+      console.error('Failed to fetch filter options:', response.data);
+      // Return default options if API fails
+      return {
+        success: false,
+        data: {
+          statuses: ['All', 'WAITINGJOB', 'WORKING', 'COMPLETED', 'CLOSED', 'CANCELLED', 'REVIEW'],
+          types: ['All'],
+          priorities: ['All', 'HIGH', 'MEDIUM', 'LOW'],
+          provinces: ['All'],
+          technicians: [],
+          teamLeaders: ['All']
+        }
+      };
+    }
+  } catch (error) {
+    console.error('Error fetching filter options:', error);
+    // Return default options if API fails
+    return {
+      success: false,
+      data: {
+        statuses: ['All', 'WAITINGJOB', 'WORKING', 'COMPLETED', 'CLOSED', 'CANCELLED', 'REVIEW'],
+        types: ['All'],
+        priorities: ['All', 'HIGH', 'MEDIUM', 'LOW'],
+        provinces: ['All'],
+        technicians: [],
+        teamLeaders: ['All']
+      }
+    };
+  }
+};
 
 // Job API calls
 export const getJobOverview = async (filters) => {
@@ -110,7 +151,6 @@ export const getCustomers = async (params = {}) => {
   }
 };
 
-
 export const getCustomerJobs = async (customerId, params = {}) => {
   // Validate customerId
   if (!customerId) {
@@ -174,52 +214,52 @@ export const getCustomerJobs = async (customerId, params = {}) => {
 };
 
 export const getJobDetails = async (customerId, jobId) => {
-    // Validate parameters
-    if (!customerId || !jobId) {
-      console.error('Customer ID and Job ID are required to fetch job details');
-      return {
-        success: false,
-        error: 'Customer ID and Job ID are required',
-        data: { jobDetails: null, timeline: [] }
-      };
-    }
+  // Validate parameters
+  if (!customerId || !jobId) {
+    console.error('Customer ID and Job ID are required to fetch job details');
+    return {
+      success: false,
+      error: 'Customer ID and Job ID are required',
+      data: { jobDetails: null, timeline: [] }
+    };
+  }
+  
+  try {
+    console.log(`Fetching job details for customer ${customerId}, job ${jobId}`);
+    const response = await api.get(`/customers/${customerId}/jobs/${jobId}`);
     
-    try {
-      console.log(`Fetching job details for customer ${customerId}, job ${jobId}`);
-      const response = await api.get(`/customers/${customerId}/jobs/${jobId}`);
-      
-      // Validate and process response data
-      if (response.data && response.data.success) {
-        // Ensure jobDetails exists
-        if (!response.data.data || !response.data.data.jobDetails) {
-          console.warn("API returned success but jobDetails is missing or invalid");
-          response.data.data = {
-            ...response.data.data,
-            jobDetails: null,
-            timeline: []
-          };
-        }
-        
-        // Ensure timeline array exists
-        if (!response.data.data.timeline || !Array.isArray(response.data.data.timeline)) {
-          response.data.data.timeline = [];
-        }
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching job details for customer ${customerId}, job ${jobId}:`, error);
-      // Return a structured error response
-      return {
-        success: false,
-        error: error.message || 'Failed to fetch job details',
-        data: {
+    // Validate and process response data
+    if (response.data && response.data.success) {
+      // Ensure jobDetails exists
+      if (!response.data.data || !response.data.data.jobDetails) {
+        console.warn("API returned success but jobDetails is missing or invalid");
+        response.data.data = {
+          ...response.data.data,
           jobDetails: null,
           timeline: []
-        }
-      };
+        };
+      }
+      
+      // Ensure timeline array exists
+      if (!response.data.data.timeline || !Array.isArray(response.data.data.timeline)) {
+        response.data.data.timeline = [];
+      }
     }
-  };
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching job details for customer ${customerId}, job ${jobId}:`, error);
+    // Return a structured error response
+    return {
+      success: false,
+      error: error.message || 'Failed to fetch job details',
+      data: {
+        jobDetails: null,
+        timeline: []
+      }
+    };
+  }
+};
 
 // Analytics API calls
 export const getTechnicianPerformance = async (params = {}) => {
@@ -254,6 +294,81 @@ export const getGeographicAnalytics = async (params = {}) => {
   }
 };
 
+// Technician Jobs API call
+export const getTechnicianJobs = async (params = {}) => {
+  const queryParams = new URLSearchParams();
+  
+  if (params.startDate) queryParams.append('startDate', params.startDate.toISOString());
+  if (params.endDate) queryParams.append('endDate', params.endDate.toISOString());
+  if (params.technicianId && params.technicianId !== 'All') queryParams.append('technicianId', params.technicianId);
+  if (params.status && params.status !== 'All') queryParams.append('status', params.status);
+  if (params.type && params.type !== 'All') queryParams.append('type', params.type);
+  if (params.priority && params.priority !== 'All') queryParams.append('priority', params.priority);
+  if (params.page) queryParams.append('page', params.page);
+  if (params.limit) queryParams.append('limit', params.limit);
+  
+  try {
+    console.log(`Fetching technician jobs with params: ${queryParams.toString()}`);
+    const response = await api.get(`/analytics/technician-jobs?${queryParams.toString()}`);
+    
+    // Validate and process response data
+    if (response.data && response.data.success) {
+      // Ensure jobs array exists
+      if (!response.data.data || !Array.isArray(response.data.data.jobs)) {
+        console.warn("API returned success but jobs array is missing or invalid");
+        response.data.data = {
+          ...response.data.data,
+          jobs: []
+        };
+      }
+      
+      // Ensure pagination data exists
+      if (!response.data.data.pagination) {
+        response.data.data.pagination = {
+          total: 0,
+          page: parseInt(params.page) || 1,
+          limit: parseInt(params.limit) || 10,
+          pages: 0
+        };
+      }
+      
+      // Ensure summary exists
+      if (!response.data.data.summary) {
+        response.data.data.summary = {
+          totalJobs: 0,
+          statusCounts: {},
+          typeCounts: {},
+          priorityCounts: {}
+        };
+      }
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching technician jobs:', error);
+    // Return a structured error response
+    return {
+      success: false,
+      error: error.message || 'Failed to fetch technician jobs',
+      data: {
+        jobs: [],
+        pagination: {
+          total: 0,
+          page: parseInt(params.page) || 1,
+          limit: parseInt(params.limit) || 10,
+          pages: 0
+        },
+        summary: {
+          totalJobs: 0,
+          statusCounts: {},
+          typeCounts: {},
+          priorityCounts: {}
+        }
+      }
+    };
+  }
+};
+
 // Technician API calls
 export const getTechnicians = async (params = {}) => {
   const queryParams = new URLSearchParams();
@@ -265,45 +380,49 @@ export const getTechnicians = async (params = {}) => {
   
   try {
     console.log(`Fetching technicians with params: ${queryParams.toString()}`);
+    
+    // Try the real API first
     const response = await api.get(`/technicians?${queryParams.toString()}`);
     
-    // For now, if endpoint isn't implemented yet, return sample data
-    if (!response.data || response.data.error) {
-      console.log('Using sample technician data instead of API response');
-      const sampleTechnicians = [
-        { id: '1', firstName: 'John', lastName: 'Smith', position: 'Senior Technician', type: 'Service' },
-        { id: '2', firstName: 'Maria', lastName: 'Garcia', position: 'Installation Expert', type: 'Installation' },
-        { id: '3', firstName: 'David', lastName: 'Johnson', position: 'Maintenance Specialist', type: 'Maintenance' },
-        { id: '4', firstName: 'Sarah', lastName: 'Lee', position: 'Inspection Lead', type: 'Inspection' },
-        { id: '5', firstName: 'James', lastName: 'Brown', position: 'Technical Manager', type: 'Service' },
-        { id: '6', firstName: 'Emma', lastName: 'Wilson', position: 'Junior Technician', type: 'Service' },
-        { id: '7', firstName: 'Michael', lastName: 'Taylor', position: 'Installation Tech', type: 'Installation' },
-      ];
-      
+    if (response.data && response.data.success) {
+      return response.data;
+    }
+    
+    // If technicians endpoint doesn't exist, use filter options endpoint
+    const filterResponse = await getFilterOptions();
+    if (filterResponse.success && filterResponse.data.technicians) {
       return {
         success: true,
-        data: params.type ? sampleTechnicians.filter(tech => tech.type === params.type) : sampleTechnicians
+        data: filterResponse.data.technicians
       };
     }
     
-    return response.data;
+    // Last resort - empty array
+    return {
+      success: true,
+      data: []
+    };
+    
   } catch (error) {
     console.error('Error fetching technicians:', error);
     
-    // Return sample data on error for development
-    const sampleTechnicians = [
-      { id: '1', firstName: 'John', lastName: 'Smith', position: 'Senior Technician', type: 'Service' },
-      { id: '2', firstName: 'Maria', lastName: 'Garcia', position: 'Installation Expert', type: 'Installation' },
-      { id: '3', firstName: 'David', lastName: 'Johnson', position: 'Maintenance Specialist', type: 'Maintenance' },
-      { id: '4', firstName: 'Sarah', lastName: 'Lee', position: 'Inspection Lead', type: 'Inspection' },
-      { id: '5', firstName: 'James', lastName: 'Brown', position: 'Technical Manager', type: 'Service' },
-      { id: '6', firstName: 'Emma', lastName: 'Wilson', position: 'Junior Technician', type: 'Service' },
-      { id: '7', firstName: 'Michael', lastName: 'Taylor', position: 'Installation Tech', type: 'Installation' },
-    ];
+    // Try filter options as fallback
+    try {
+      const filterResponse = await getFilterOptions();
+      if (filterResponse.success && filterResponse.data.technicians) {
+        return {
+          success: true,
+          data: filterResponse.data.technicians
+        };
+      }
+    } catch (fallbackError) {
+      console.error('Fallback also failed:', fallbackError);
+    }
     
     return {
-      success: true,
-      data: params.type ? sampleTechnicians.filter(tech => tech.type === params.type) : sampleTechnicians
+      success: false,
+      data: [],
+      error: error.message
     };
   }
 };

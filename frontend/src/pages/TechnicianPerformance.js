@@ -1,4 +1,4 @@
-// File: frontend/src/pages/TechnicianPerformance.js (with FilterBar added)
+// File: frontend/src/pages/TechnicianPerformance.js (Updated with Jobs Table)
 import React, { useState, useEffect } from 'react';
 import { 
   Container, 
@@ -22,19 +22,23 @@ import {
   alpha,
   useTheme,
   Chip,
-  Fade
+  Fade,
+  Tabs,
+  Tab
 } from '@mui/material';
 import { 
   Home as HomeIcon, 
   Engineering as EngineeringIcon,
   Star as StarIcon,
   Assessment as AssessmentIcon,
-  TrendingUp as TrendingUpIcon
+  TrendingUp as TrendingUpIcon,
+  Work as WorkIcon
 } from '@mui/icons-material';
 import { useFilters } from '../context/FilterContext';
 import { getTechnicianPerformance } from '../services/api';
 import FilterBar from '../components/layout/FilterBar';
 import BarChart from '../components/dashboard/BarChart';
+import TechnicianJobsTable from '../components/technician/TechnicianJobsTable';
 import { useLanguage } from '../context/LanguageContext';
 
 const TechnicianPerformance = () => {
@@ -42,8 +46,9 @@ const TechnicianPerformance = () => {
   const [loading, setLoading] = useState(true);
   const [performanceData, setPerformanceData] = useState(null);
   const [error, setError] = useState(null);
+  const [tabValue, setTabValue] = useState(0);
   const theme = useTheme();
-  const { t } = useLanguage(); // For translations
+  const { t } = useLanguage();
   
   useEffect(() => {
     const fetchPerformanceData = async () => {
@@ -53,7 +58,7 @@ const TechnicianPerformance = () => {
         const response = await getTechnicianPerformance({
           startDate: filters.startDate,
           endDate: filters.endDate,
-          technicianId: filters.technicianId // Pass technician ID from filters
+          technicianId: filters.technicianId
         });
         
         if (response.success) {
@@ -75,6 +80,10 @@ const TechnicianPerformance = () => {
     
     fetchPerformanceData();
   }, [filters.startDate, filters.endDate, filters.technicianId, t]);
+
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
   
   const formatDate = (dateString) => {
     if (!dateString) return t('N/A');
@@ -96,10 +105,18 @@ const TechnicianPerformance = () => {
   };
   
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4, px: { xs: 2, sm: 2, md: 3 } }}>
+    <Container 
+      maxWidth="xl" 
+      sx={{ 
+        py: 2,
+        px: { xs: 2, sm: 2, md: 3 },
+        position: 'relative',
+        zIndex: 1,
+      }}
+    >
       <Fade in={true} timeout={800}>
         <Box>
-          <Box mb={4}>
+          <Box mb={3}>
             <Breadcrumbs aria-label="breadcrumb">
               <Link 
                 underline="hover" 
@@ -118,7 +135,7 @@ const TechnicianPerformance = () => {
             
             <Box 
               mt={2}
-              mb={4} 
+              mb={3} 
               sx={{ 
                 background: `linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.background.default, 0)} 100%)`,
                 p: 3,
@@ -153,198 +170,270 @@ const TechnicianPerformance = () => {
               <Typography variant="body1">{error}</Typography>
             </Box>
           )}
-          
-          {loading ? (
-            <Box display="flex" justifyContent="center" alignItems="center" height="300px">
-              <CircularProgress />
-            </Box>
-          ) : (
-            <>
-              <Grid container spacing={4} mb={4}>
-                <Grid item xs={12} md={6}>
-                  <BarChart 
-                    data={prepareRatingData('overall')} 
-                    title={t("Overall Rating by Technician")} 
-                    xAxisKey="name"
-                    dataKey="value"
-                    color="#6366F1" // Purple
-                    height={400}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <BarChart 
-                    data={prepareRatingData('recommend')} 
-                    title={t("Recommendation Rating")} 
-                    xAxisKey="name"
-                    dataKey="value"
-                    color="#EC4899" // Pink
-                    height={400}
-                  />
-                </Grid>
-              </Grid>
-              
-              <Grid container spacing={4} mb={4}>
-                <Grid item xs={12} md={4}>
-                  <BarChart 
-                    data={prepareRatingData('time')} 
-                    title={t("Timeliness Rating")} 
-                    xAxisKey="name"
-                    dataKey="value"
-                    color="#10B981" // Green
-                    height={350}
-                  />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <BarChart 
-                    data={prepareRatingData('manner')} 
-                    title={t("Manner Rating")} 
-                    xAxisKey="name"
-                    dataKey="value"
-                    color="#F59E0B" // Amber
-                    height={350}
-                  />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <BarChart 
-                    data={prepareRatingData('knowledge')} 
-                    title={t("Knowledge Rating")} 
-                    xAxisKey="name"
-                    dataKey="value"
-                    color="#3B82F6" // Blue
-                    height={350}
-                  />
-                </Grid>
-              </Grid>
-              
-              <Card sx={{ mb: 4 }}>
-                <CardContent>
-                  <Box display="flex" alignItems="center" mb={2}>
-                    <AssessmentIcon sx={{ color: theme.palette.primary.main, mr: 1 }} />
-                    <Typography variant="h5" fontWeight="bold">
-                      {t("Performance Summary")}
-                    </Typography>
-                  </Box>
-                  
-                  <TableContainer component={Paper} sx={{ maxHeight: 500, overflow: 'auto', backgroundColor: 'transparent' }}>
-                    <Table stickyHeader size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>{t("Technician")}</TableCell>
-                          <TableCell align="center">{t("Overall Rating")}</TableCell>
-                          <TableCell align="center">{t("Time")}</TableCell>
-                          <TableCell align="center">{t("Manner")}</TableCell>
-                          <TableCell align="center">{t("Knowledge")}</TableCell>
-                          <TableCell align="center">{t("Recommend")}</TableCell>
-                          <TableCell align="center">{t("Review Count")}</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {performanceData?.performanceSummary?.length > 0 ? (
-                          performanceData.performanceSummary.map((tech) => (
-                            <TableRow key={tech._id}>
-                              <TableCell>{tech.technicianName}</TableCell>
-                              <TableCell align="center">
-                                <Rating value={tech.metrics.overall} precision={0.1} readOnly size="small" />
-                                <Typography variant="body2">{tech.metrics.overall.toFixed(1)}</Typography>
-                              </TableCell>
-                              <TableCell align="center">{tech.metrics.time.toFixed(1)}</TableCell>
-                              <TableCell align="center">{tech.metrics.manner.toFixed(1)}</TableCell>
-                              <TableCell align="center">{tech.metrics.knowledge.toFixed(1)}</TableCell>
-                              <TableCell align="center">{tech.metrics.recommend.toFixed(1)}</TableCell>
-                              <TableCell align="center">
-                                <Chip 
-                                  label={tech.reviewCount} 
-                                  size="small" 
-                                  color="primary" 
-                                  sx={{ fontWeight: 600 }} 
-                                />
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={7} align="center">
-                              {t("No performance data available")}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent>
-                  <Box display="flex" alignItems="center" mb={2}>
-                    <StarIcon sx={{ color: theme.palette.warning.main, mr: 1 }} />
-                    <Typography variant="h5" fontWeight="bold">
-                      {t("Recent Reviews")}
-                    </Typography>
-                  </Box>
-                  
-                  <TableContainer component={Paper} sx={{ maxHeight: 400, overflow: 'auto', backgroundColor: 'transparent' }}>
-                    <Table stickyHeader size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>{t("Job No")}</TableCell>
-                          <TableCell>{t("Technician")}</TableCell>
-                          <TableCell align="center">{t("Time")}</TableCell>
-                          <TableCell align="center">{t("Manner")}</TableCell>
-                          <TableCell align="center">{t("Knowledge")}</TableCell>
-                          <TableCell align="center">{t("Overall")}</TableCell>
-                          <TableCell align="center">{t("Recommend")}</TableCell>
-                          <TableCell>{t("Comment")}</TableCell>
-                          <TableCell>{t("Date")}</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {performanceData?.recentReviews?.length > 0 ? (
-                          performanceData.recentReviews.map((review) => (
-                            <TableRow key={review._id}>
-                              <TableCell>{review.jobNo || t('N/A')}</TableCell>
-                              <TableCell>{review.technicianName}</TableCell>
-                              <TableCell align="center">{review.time}</TableCell>
-                              <TableCell align="center">{review.manner}</TableCell>
-                              <TableCell align="center">{review.knowledge}</TableCell>
-                              <TableCell align="center">
-                                <Rating value={review.overall} precision={0.5} readOnly size="small" />
-                              </TableCell>
-                              <TableCell align="center">{review.recommend}</TableCell>
-                              <TableCell>
-                                {review.comment ? (
-                                  <Typography 
-                                    variant="body2" 
-                                    sx={{ 
-                                      maxWidth: 200, 
-                                      overflow: 'hidden', 
-                                      textOverflow: 'ellipsis', 
-                                      whiteSpace: 'nowrap' 
-                                    }}
-                                  >
-                                    {review.comment}
-                                  </Typography>
-                                ) : (
-                                  <Typography variant="body2" color="text.secondary">{t("No comment")}</Typography>
-                                )}
-                              </TableCell>
-                              <TableCell>{formatDate(review.createdAt)}</TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={9} align="center">
-                              {t("No recent reviews available")}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </CardContent>
-              </Card>
-            </>
-          )}
+
+          {/* Tabs Navigation */}
+          <Box 
+            sx={{ 
+              borderBottom: 1, 
+              borderColor: alpha(theme.palette.divider, 0.1), 
+              mb: 3,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: alpha(theme.palette.background.paper, 0.4),
+              borderRadius: '12px 12px 0 0',
+              px: 2,
+            }}
+          >
+            <Tabs 
+              value={tabValue} 
+              onChange={handleTabChange} 
+              aria-label="technician tabs"
+              TabIndicatorProps={{
+                style: {
+                  backgroundColor: theme.palette.primary.main,
+                  height: 3,
+                  borderRadius: '3px 3px 0 0',
+                  boxShadow: `0 0 8px ${alpha(theme.palette.primary.main, 0.7)}`
+                }
+              }}
+            >
+              <Tab 
+                label={t("Performance Metrics")} 
+                icon={<AssessmentIcon />} 
+                iconPosition="start" 
+                sx={{ 
+                  minHeight: 64,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '1rem'
+                }}
+              />
+              <Tab 
+                label={t("Jobs by Technician")} 
+                icon={<WorkIcon />} 
+                iconPosition="start"
+                sx={{ 
+                  minHeight: 64,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '1rem'
+                }}
+              />
+            </Tabs>
+          </Box>
+
+          {/* Tab Content */}
+          <Box
+            sx={{
+              backgroundColor: alpha(theme.palette.background.paper, 0.2),
+              borderRadius: '0 0 12px 12px',
+              p: 3,
+              minHeight: '60vh',
+            }}
+          >
+            {loading ? (
+              <Box display="flex" justifyContent="center" alignItems="center" height="300px">
+                <CircularProgress />
+              </Box>
+            ) : (
+              <>
+                {/* Performance Metrics Tab */}
+                {tabValue === 0 && (
+                  <>
+                    <Grid container spacing={4} mb={4}>
+                      <Grid item xs={12} md={6}>
+                        <BarChart 
+                          data={prepareRatingData('overall')} 
+                          title={t("Overall Rating by Technician")} 
+                          xAxisKey="name"
+                          dataKey="value"
+                          color="#6366F1" // Purple
+                          height={400}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <BarChart 
+                          data={prepareRatingData('recommend')} 
+                          title={t("Recommendation Rating")} 
+                          xAxisKey="name"
+                          dataKey="value"
+                          color="#EC4899" // Pink
+                          height={400}
+                        />
+                      </Grid>
+                    </Grid>
+                    
+                    <Grid container spacing={4} mb={4}>
+                      <Grid item xs={12} md={4}>
+                        <BarChart 
+                          data={prepareRatingData('time')} 
+                          title={t("Timeliness Rating")} 
+                          xAxisKey="name"
+                          dataKey="value"
+                          color="#10B981" // Green
+                          height={350}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <BarChart 
+                          data={prepareRatingData('manner')} 
+                          title={t("Manner Rating")} 
+                          xAxisKey="name"
+                          dataKey="value"
+                          color="#F59E0B" // Amber
+                          height={350}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <BarChart 
+                          data={prepareRatingData('knowledge')} 
+                          title={t("Knowledge Rating")} 
+                          xAxisKey="name"
+                          dataKey="value"
+                          color="#3B82F6" // Blue
+                          height={350}
+                        />
+                      </Grid>
+                    </Grid>
+                    
+                    <Card sx={{ mb: 4 }}>
+                      <CardContent>
+                        <Box display="flex" alignItems="center" mb={2}>
+                          <AssessmentIcon sx={{ color: theme.palette.primary.main, mr: 1 }} />
+                          <Typography variant="h5" fontWeight="bold">
+                            {t("Performance Summary")}
+                          </Typography>
+                        </Box>
+                        
+                        <TableContainer component={Paper} sx={{ maxHeight: 500, overflow: 'auto', backgroundColor: 'transparent' }}>
+                          <Table stickyHeader size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>{t("Technician")}</TableCell>
+                                <TableCell align="center">{t("Overall Rating")}</TableCell>
+                                <TableCell align="center">{t("Time")}</TableCell>
+                                <TableCell align="center">{t("Manner")}</TableCell>
+                                <TableCell align="center">{t("Knowledge")}</TableCell>
+                                <TableCell align="center">{t("Recommend")}</TableCell>
+                                <TableCell align="center">{t("Review Count")}</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {performanceData?.performanceSummary?.length > 0 ? (
+                                performanceData.performanceSummary.map((tech) => (
+                                  <TableRow key={tech._id}>
+                                    <TableCell>{tech.technicianName}</TableCell>
+                                    <TableCell align="center">
+                                      <Rating value={tech.metrics.overall} precision={0.1} readOnly size="small" />
+                                      <Typography variant="body2">{tech.metrics.overall.toFixed(1)}</Typography>
+                                    </TableCell>
+                                    <TableCell align="center">{tech.metrics.time.toFixed(1)}</TableCell>
+                                    <TableCell align="center">{tech.metrics.manner.toFixed(1)}</TableCell>
+                                    <TableCell align="center">{tech.metrics.knowledge.toFixed(1)}</TableCell>
+                                    <TableCell align="center">{tech.metrics.recommend.toFixed(1)}</TableCell>
+                                    <TableCell align="center">
+                                      <Chip 
+                                        label={tech.reviewCount} 
+                                        size="small" 
+                                        color="primary" 
+                                        sx={{ fontWeight: 600 }} 
+                                      />
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              ) : (
+                                <TableRow>
+                                  <TableCell colSpan={7} align="center">
+                                    {t("No performance data available")}
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardContent>
+                        <Box display="flex" alignItems="center" mb={2}>
+                          <StarIcon sx={{ color: theme.palette.warning.main, mr: 1 }} />
+                          <Typography variant="h5" fontWeight="bold">
+                            {t("Recent Reviews")}
+                          </Typography>
+                        </Box>
+                        
+                        <TableContainer component={Paper} sx={{ maxHeight: 400, overflow: 'auto', backgroundColor: 'transparent' }}>
+                          <Table stickyHeader size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>{t("Job No")}</TableCell>
+                                <TableCell>{t("Technician")}</TableCell>
+                                <TableCell align="center">{t("Time")}</TableCell>
+                                <TableCell align="center">{t("Manner")}</TableCell>
+                                <TableCell align="center">{t("Knowledge")}</TableCell>
+                                <TableCell align="center">{t("Overall")}</TableCell>
+                                <TableCell align="center">{t("Recommend")}</TableCell>
+                                <TableCell>{t("Comment")}</TableCell>
+                                <TableCell>{t("Date")}</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {performanceData?.recentReviews?.length > 0 ? (
+                                performanceData.recentReviews.map((review) => (
+                                  <TableRow key={review._id}>
+                                    <TableCell>{review.jobNo || t('N/A')}</TableCell>
+                                    <TableCell>{review.technicianName}</TableCell>
+                                    <TableCell align="center">{review.time}</TableCell>
+                                    <TableCell align="center">{review.manner}</TableCell>
+                                    <TableCell align="center">{review.knowledge}</TableCell>
+                                    <TableCell align="center">
+                                      <Rating value={review.overall} precision={0.5} readOnly size="small" />
+                                    </TableCell>
+                                    <TableCell align="center">{review.recommend}</TableCell>
+                                    <TableCell>
+                                      {review.comment ? (
+                                        <Typography 
+                                          variant="body2" 
+                                          sx={{ 
+                                            maxWidth: 200, 
+                                            overflow: 'hidden', 
+                                            textOverflow: 'ellipsis', 
+                                            whiteSpace: 'nowrap' 
+                                          }}
+                                        >
+                                          {review.comment}
+                                        </Typography>
+                                      ) : (
+                                        <Typography variant="body2" color="text.secondary">{t("No comment")}</Typography>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>{formatDate(review.createdAt)}</TableCell>
+                                  </TableRow>
+                                ))
+                              ) : (
+                                <TableRow>
+                                  <TableCell colSpan={9} align="center">
+                                    {t("No recent reviews available")}
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+
+                {/* Jobs by Technician Tab */}
+                {tabValue === 1 && (
+                  <TechnicianJobsTable filters={filters} />
+                )}
+              </>
+            )}
+          </Box>
         </Box>
       </Fade>
     </Container>

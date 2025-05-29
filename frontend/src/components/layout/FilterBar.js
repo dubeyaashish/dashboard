@@ -1,4 +1,4 @@
-// Modified src/components/layout/FilterBar.js
+// File: frontend/src/components/layout/FilterBar.js (Corrected Version)
 import React, { useState, useEffect } from 'react';
 import { 
   Paper, 
@@ -38,7 +38,6 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { useFilters } from '../../context/FilterContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { getTechnicians } from '../../services/api';
 
 // Helper function to get status color
 const getStatusColor = (status) => {
@@ -67,34 +66,30 @@ const getPriorityColor = (priority) => {
 };
 
 const FilterBar = () => {
-  const { filters, filterOptions, updateFilters, resetFilters, setDateRange } = useFilters();
+  const { 
+    filters, 
+    filterOptions, 
+    loading: filterLoading, 
+    updateFilters, 
+    resetFilters, 
+    setDateRange,
+    refreshFilterOptions 
+  } = useFilters();
+  
   const [expanded, setExpanded] = useState(false);
-  const theme = useTheme();
-  const { t } = useLanguage(); // For translations
-  
-  // For technician filter
-  const [loading, setLoading] = useState(false);
-  const [technicians, setTechnicians] = useState([]);
   const [selectedTechnician, setSelectedTechnician] = useState(null);
+  const theme = useTheme();
+  const { t } = useLanguage();
   
-  // Load technicians
+  // Set selected technician when filters change
   useEffect(() => {
-    const fetchTechnicians = async () => {
-      setLoading(true);
-      try {
-        const response = await getTechnicians();
-        if (response && response.success) {
-          setTechnicians(response.data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching technicians:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTechnicians();
-  }, []);
+    if (filters.technicianId && filterOptions.technicians) {
+      const tech = filterOptions.technicians.find(t => t.id === filters.technicianId);
+      setSelectedTechnician(tech || null);
+    } else {
+      setSelectedTechnician(null);
+    }
+  }, [filters.technicianId, filterOptions.technicians]);
   
   const handleToggleExpand = () => {
     setExpanded(!expanded);
@@ -106,11 +101,12 @@ const FilterBar = () => {
   
   // Handle technician selection
   const handleTechnicianChange = (event, newValue) => {
+    console.log('Technician selected:', newValue);
     setSelectedTechnician(newValue);
     
     if (newValue) {
       updateFilters({ 
-        technician: `${newValue.firstName} ${newValue.lastName}`,
+        technician: newValue.fullName,
         technicianId: newValue.id
       });
     } else {
@@ -119,6 +115,12 @@ const FilterBar = () => {
         technicianId: null
       });
     }
+  };
+  
+  // Handle refresh filter options
+  const handleRefreshFilters = () => {
+    console.log('Refreshing filter options...');
+    refreshFilterOptions();
   };
   
   const activeFiltersCount = Object.entries(filters).filter(([key, value]) => {
@@ -159,6 +161,9 @@ const FilterBar = () => {
           <Typography variant="subtitle1" fontWeight={600}>
             {t("Filter Jobs")}
           </Typography>
+          {filterLoading && (
+            <CircularProgress size={16} sx={{ ml: 1 }} />
+          )}
           {activeFiltersCount > 0 && (
             <Badge 
               badgeContent={activeFiltersCount} 
@@ -186,6 +191,17 @@ const FilterBar = () => {
         </Box>
         
         <Box display="flex" alignItems="center">
+          <Tooltip title={t("Refresh filter options")}>
+            <IconButton 
+              size="small" 
+              onClick={handleRefreshFilters}
+              disabled={filterLoading}
+              sx={{ mr: 1 }}
+            >
+              <RefreshIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          
           <Button 
             size="small" 
             onClick={handleToggleExpand}
@@ -363,13 +379,13 @@ const FilterBar = () => {
             <Grid item xs={12} md={expanded ? 4 : 2.4}>
               <Autocomplete
                 id="technician-selector"
-                options={technicians}
-                getOptionLabel={(option) => `${option.firstName} ${option.lastName} ${option.position ? `(${option.position})` : ''}`}
+                options={filterOptions.technicians || []}
+                getOptionLabel={(option) => option.displayName || option.fullName || `${option.firstName} ${option.lastName}`}
                 value={selectedTechnician}
                 onChange={handleTechnicianChange}
-                loading={loading}
+                loading={filterLoading}
                 loadingText={t('Loading technicians...')}
-                noOptionsText={t('No technicians found')}
+                noOptionsText={filterOptions.technicians?.length === 0 ? t('No technicians found') : t('Start typing to search...')}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -396,7 +412,7 @@ const FilterBar = () => {
                       ),
                       endAdornment: (
                         <>
-                          {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                          {filterLoading ? <CircularProgress color="inherit" size={20} /> : null}
                           {params.InputProps.endAdornment}
                         </>
                       ),
@@ -406,10 +422,17 @@ const FilterBar = () => {
                 renderOption={(props, option) => (
                   <Box component="li" {...props}>
                     <Box display="flex" flexDirection="column">
-                      <Typography variant="body2">{`${option.firstName} ${option.lastName}`}</Typography>
+                      <Typography variant="body2">
+                        {`${option.firstName} ${option.lastName}`}
+                        {option.code && (
+                          <Typography component="span" color="primary" sx={{ ml: 1 }}>
+                            ({option.code})
+                          </Typography>
+                        )}
+                      </Typography>
                       {option.position && (
                         <Typography variant="caption" color="text.secondary">
-                          {option.position}
+                          {option.position} - {option.type}
                         </Typography>
                       )}
                     </Box>

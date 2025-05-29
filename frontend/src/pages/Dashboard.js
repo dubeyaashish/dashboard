@@ -1,4 +1,4 @@
-// Modified src/pages/Dashboard.js with map removed
+// File: frontend/src/pages/Dashboard.js (Fixed spacing and layout issues)
 import React, { useState, useEffect } from 'react';
 import { 
   Container, 
@@ -33,7 +33,6 @@ import MetricCard from '../components/dashboard/metricCard';
 import StatusPieChart from '../components/dashboard/StatusPieChart';
 import BarChart from '../components/dashboard/BarChart';
 import DataTable from '../components/dashboard/DataTable';
- // Import TechnicianFilter
 
 const Dashboard = () => {
   const { filters, updateFilters } = useFilters();
@@ -56,7 +55,7 @@ const Dashboard = () => {
       } finally {
         setTimeout(() => {
           setLoading(false);
-        }, 800); // Add a small delay to make loading feel more natural
+        }, 800);
       }
     };
     
@@ -79,11 +78,22 @@ const Dashboard = () => {
   ];
   
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4, px: { xs: 2, sm: 2, md: 3 } }}>
+    // FIXED: Remove top margin and use proper container
+    <Container 
+      maxWidth="xl" 
+      sx={{ 
+        py: 2, // Reduced padding
+        px: { xs: 2, sm: 2, md: 3 },
+        // FIXED: Ensure content doesn't get hidden
+        position: 'relative',
+        zIndex: 1,
+      }}
+    >
       <Fade in={true} timeout={800}>
         <Box>
+          {/* FIXED: Header section with reduced margin */}
           <Box 
-            mb={4} 
+            mb={3} // Reduced from mb={4}
             sx={{ 
               background: `linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.background.default, 0)} 100%)`,
               p: 3,
@@ -102,19 +112,17 @@ const Dashboard = () => {
               Use filters to analyze specific time periods and job types.
             </Typography>
             <FilterBar />
-            
-
           </Box>
           
-          {/* Metric Cards */}
-          <Grid container spacing={3} mb={4}>
+          {/* FIXED: Metric Cards with reduced margin */}
+          <Grid container spacing={3} mb={3}> {/* Reduced from mb={4} */}
             <Grid item xs={12} sm={6} md={3}>
               <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '100ms' : '0ms' }}>
                 <Box>
                   <MetricCard 
                     title="Total Jobs" 
                     value={dashboardData?.metrics?.totalJobs?.toLocaleString() || '0'} 
-                    delta={5.2} // Example, replace with actual delta
+                    delta={5.2}
                     icon={<DashboardIcon fontSize="large" />}
                     color="primary"
                   />
@@ -127,7 +135,7 @@ const Dashboard = () => {
                   <MetricCard 
                     title="Closed Jobs" 
                     value={dashboardData?.metrics?.closedJobs?.toLocaleString() || '0'} 
-                    delta={2.8} // Example, replace with actual delta
+                    delta={2.8}
                     icon={<AssignmentIcon fontSize="large" />}
                     color="success"
                   />
@@ -160,14 +168,18 @@ const Dashboard = () => {
             </Grid>
           </Grid>
           
+          {/* FIXED: Tabs section with better spacing */}
           <Box 
             sx={{ 
               borderBottom: 1, 
               borderColor: alpha(theme.palette.divider, 0.1), 
-              mb: 3,
+              mb: 2, // Reduced from mb={3}
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between'
+              justifyContent: 'space-between',
+              backgroundColor: alpha(theme.palette.background.paper, 0.4),
+              borderRadius: '12px 12px 0 0',
+              px: 2,
             }}
           >
             <Tabs 
@@ -233,194 +245,204 @@ const Dashboard = () => {
             </Box>
           </Box>
           
-          {/* Overview Tab */}
-          {tabValue === 0 && (
-            <>
-              {/* Status and Priority charts */}
-              <Grid container spacing={4} mb={5}>
-                <Grid item xs={12} md={6}>
-                  <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '150ms' : '0ms' }}>
-                    <Box sx={{ height: 500, width: '100%' }}>
-                      <StatusPieChart 
-                        data={dashboardData?.distributions?.status || []} 
-                        title="Job Status Distribution" 
-                      />
-                    </Box>
-                  </Fade>
+          {/* FIXED: Tab content with proper spacing */}
+          <Box
+            sx={{
+              backgroundColor: alpha(theme.palette.background.paper, 0.2),
+              borderRadius: '0 0 12px 12px',
+              p: 3,
+              minHeight: '60vh',
+            }}
+          >
+            {/* Overview Tab */}
+            {tabValue === 0 && (
+              <>
+                {/* Status and Priority charts */}
+                <Grid container spacing={4} mb={4}> {/* Reduced from mb={5} */}
+                  <Grid item xs={12} md={6}>
+                    <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '150ms' : '0ms' }}>
+                      <Box sx={{ height: 500, width: '100%' }}>
+                        <StatusPieChart 
+                          data={dashboardData?.distributions?.status || []} 
+                          title="Job Status Distribution" 
+                        />
+                      </Box>
+                    </Fade>
+                  </Grid>
+                  
+                  <Grid item xs={12} md={6}>
+                    <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '300ms' : '0ms' }}>
+                      <Box sx={{ height: 500, width: '100%' }}>
+                        <BarChart 
+                          data={dashboardData?.distributions?.priority || []} 
+                          title="Job Priority Distribution" 
+                          xAxisKey="_id"
+                          dataKey="count"
+                          color="#F59E0B"
+                          height={470}
+                        />
+                      </Box>
+                    </Fade>
+                  </Grid>
                 </Grid>
                 
-                <Grid item xs={12} md={6}>
-                  <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '300ms' : '0ms' }}>
-                    <Box sx={{ height: 500, width: '100%' }}>
-                      <BarChart 
-                        data={dashboardData?.distributions?.priority || []} 
-                        title="Job Priority Distribution" 
-                        xAxisKey="_id"
-                        dataKey="count"
-                        color="#F59E0B" // Amber color
-                        height={470} // Explicitly set chart height
-                      />
-                    </Box>
-                  </Fade>
-                </Grid>
-              </Grid>
-              
-              {/* Province and District charts */}
-              <Grid container spacing={4} mb={5}>
-                <Grid item xs={12} md={6}>
-                  <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '450ms' : '0ms' }}>
-                    <Box sx={{ height: 550, width: '100%' }}>
-                      <BarChart 
-                        data={dashboardData?.distributions?.province || []} 
-                        title="Most Jobs by Province" 
-                        xAxisKey="_id"
-                        dataKey="count"
-                        horizontal={true}
-                        color="#3B82F6" // Blue color
-                        height={520} // Explicitly set chart height
-                      />
-                    </Box>
-                  </Fade>
+                {/* Province and District charts */}
+                <Grid container spacing={4} mb={4}> {/* Reduced from mb={5} */}
+                  <Grid item xs={12} md={6}>
+                    <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '450ms' : '0ms' }}>
+                      <Box sx={{ height: 550, width: '100%' }}>
+                        <BarChart 
+                          data={dashboardData?.distributions?.province || []} 
+                          title="Most Jobs by Province" 
+                          xAxisKey="_id"
+                          dataKey="count"
+                          horizontal={true}
+                          color="#3B82F6"
+                          height={520}
+                        />
+                      </Box>
+                    </Fade>
+                  </Grid>
+                  
+                  <Grid item xs={12} md={6}>
+                    <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '600ms' : '0ms' }}>
+                      <Box sx={{ height: 550, width: '100%' }}>
+                        <BarChart 
+                          data={dashboardData?.distributions?.district || []} 
+                          title="Most Jobs by District" 
+                          xAxisKey="_id"
+                          dataKey="count"
+                          horizontal={true}
+                          color="#10B981"
+                          height={520}
+                        />
+                      </Box>
+                    </Fade>
+                  </Grid>
                 </Grid>
                 
-                <Grid item xs={12} md={6}>
-                  <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '600ms' : '0ms' }}>
-                    <Box sx={{ height: 550, width: '100%' }}>
-                      <BarChart 
-                        data={dashboardData?.distributions?.district || []} 
-                        title="Most Jobs by District" 
-                        xAxisKey="_id"
-                        dataKey="count"
-                        horizontal={true}
-                        color="#10B981" // Green color
-                        height={520} // Explicitly set chart height
-                      />
-                    </Box>
-                  </Fade>
-                </Grid>
-              </Grid>
-              
-              <Divider 
-                sx={{ 
-                  my: 4, 
-                  opacity: 0.2,
-                  '&::before, &::after': {
-                    borderColor: alpha(theme.palette.divider, 0.2),
-                  }
-                }} 
-              >
-                <Chip 
-                  label="RECENT JOBS" 
-                  size="small" 
+                <Divider 
                   sx={{ 
-                    fontWeight: 600,
-                    background: alpha(theme.palette.primary.main, 0.1),
-                    color: theme.palette.primary.light,
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.05)}`
+                    my: 3, // Reduced from my: 4
+                    opacity: 0.2,
+                    '&::before, &::after': {
+                      borderColor: alpha(theme.palette.divider, 0.2),
+                    }
                   }} 
-                />
-              </Divider>
-              
-              <Fade in={!loading} timeout={1000}>
-                <Box>
-                  <DataTable 
-                    data={dashboardData?.jobs || []} 
-                    title="Recent Jobs"
-                    columns={jobColumns}
-                    totalCount={dashboardData?.pagination?.total || 0}
-                    page={dashboardData?.pagination?.page - 1 || 0}
-                    rowsPerPage={dashboardData?.pagination?.limit || 10}
-                    onPageChange={(newPage) => updateFilters({ page: newPage + 1 })}
-                    onRowsPerPageChange={(newLimit) => updateFilters({ limit: newLimit, page: 1 })}
+                >
+                  <Chip 
+                    label="RECENT JOBS" 
+                    size="small" 
+                    sx={{ 
+                      fontWeight: 600,
+                      background: alpha(theme.palette.primary.main, 0.1),
+                      color: theme.palette.primary.light,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.05)}`
+                    }} 
                   />
-                </Box>
-              </Fade>
-            </>
-          )}
-          
-          {/* Customer Tab - Will be implemented as a separate component */}
-          {tabValue === 1 && (
-            <Box 
-              sx={{ 
-                p: 6, 
-                textAlign: 'center',
-                borderRadius: 4,
-                border: `1px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
-                bgcolor: alpha(theme.palette.background.paper, 0.4)
-              }}
-            >
-              <PersonIcon 
+                </Divider>
+                
+                <Fade in={!loading} timeout={1000}>
+                  <Box>
+                    <DataTable 
+                      data={dashboardData?.jobs || []} 
+                      title="Recent Jobs"
+                      columns={jobColumns}
+                      totalCount={dashboardData?.pagination?.total || 0}
+                      page={dashboardData?.pagination?.page - 1 || 0}
+                      rowsPerPage={dashboardData?.pagination?.limit || 10}
+                      onPageChange={(newPage) => updateFilters({ page: newPage + 1 })}
+                      onRowsPerPageChange={(newLimit) => updateFilters({ limit: newLimit, page: 1 })}
+                    />
+                  </Box>
+                </Fade>
+              </>
+            )}
+            
+            {/* Customer Tab */}
+            {tabValue === 1 && (
+              <Box 
                 sx={{ 
-                  fontSize: 60, 
-                  color: alpha(theme.palette.primary.main, 0.3),
-                  mb: 2
+                  p: 6, 
+                  textAlign: 'center',
+                  borderRadius: 4,
+                  border: `1px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
+                  bgcolor: alpha(theme.palette.background.paper, 0.4)
                 }}
-              />
-              <Typography variant="h5" fontWeight="bold" gutterBottom>
-                Customer Analysis
-              </Typography>
-              <Typography variant="body1" mt={2} sx={{ color: theme.palette.text.secondary, maxWidth: 500, mx: 'auto', mb: 3 }}>
-                Switch to the dedicated Customer View page for detailed customer analysis, including job history, reviews, and performance metrics.
-              </Typography>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                size="large"
-                sx={{ 
-                  borderRadius: 2,
-                  px: 4,
-                  py: 1,
-                  textTransform: 'none',
-                  fontWeight: 600
-                }} 
-                onClick={() => window.location.href = '/customers'}
               >
-                Go to Customer View
-              </Button>
-            </Box>
-          )}
-          
-          {/* Technician Performance Tab - Will be implemented as a separate component */}
-          {tabValue === 2 && (
-            <Box 
-              sx={{ 
-                p: 6, 
-                textAlign: 'center',
-                borderRadius: 4,
-                border: `1px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
-                bgcolor: alpha(theme.palette.background.paper, 0.4)
-              }}
-            >
-              <EngineeringIcon 
+                <PersonIcon 
+                  sx={{ 
+                    fontSize: 60, 
+                    color: alpha(theme.palette.primary.main, 0.3),
+                    mb: 2
+                  }}
+                />
+                <Typography variant="h5" fontWeight="bold" gutterBottom>
+                  Customer Analysis
+                </Typography>
+                <Typography variant="body1" mt={2} sx={{ color: theme.palette.text.secondary, maxWidth: 500, mx: 'auto', mb: 3 }}>
+                  Switch to the dedicated Customer View page for detailed customer analysis, including job history, reviews, and performance metrics.
+                </Typography>
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  size="large"
+                  sx={{ 
+                    borderRadius: 2,
+                    px: 4,
+                    py: 1,
+                    textTransform: 'none',
+                    fontWeight: 600
+                  }} 
+                  onClick={() => window.location.href = '/customers'}
+                >
+                  Go to Customer View
+                </Button>
+              </Box>
+            )}
+            
+            {/* Technician Performance Tab */}
+            {tabValue === 2 && (
+              <Box 
                 sx={{ 
-                  fontSize: 60, 
-                  color: alpha(theme.palette.primary.main, 0.3),
-                  mb: 2
+                  p: 6, 
+                  textAlign: 'center',
+                  borderRadius: 4,
+                  border: `1px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
+                  bgcolor: alpha(theme.palette.background.paper, 0.4)
                 }}
-              />
-              <Typography variant="h5" fontWeight="bold" gutterBottom>
-                Technician Performance
-              </Typography>
-              <Typography variant="body1" mt={2} sx={{ color: theme.palette.text.secondary, maxWidth: 500, mx: 'auto', mb: 3 }}>
-                Switch to the dedicated Technician Performance page for detailed analysis of technician efficiency, customer satisfaction, and job completion rates.
-              </Typography>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                size="large"
-                sx={{ 
-                  borderRadius: 2,
-                  px: 4,
-                  py: 1,
-                  textTransform: 'none',
-                  fontWeight: 600
-                }} 
-                onClick={() => window.location.href = '/technicians'}
               >
-                Go to Technician Performance
-              </Button>
-            </Box>
-          )}
+                <EngineeringIcon 
+                  sx={{ 
+                    fontSize: 60, 
+                    color: alpha(theme.palette.primary.main, 0.3),
+                    mb: 2
+                  }}
+                />
+                <Typography variant="h5" fontWeight="bold" gutterBottom>
+                  Technician Performance
+                </Typography>
+                <Typography variant="body1" mt={2} sx={{ color: theme.palette.text.secondary, maxWidth: 500, mx: 'auto', mb: 3 }}>
+                  Switch to the dedicated Technician Performance page for detailed analysis of technician efficiency, customer satisfaction, and job completion rates.
+                </Typography>
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  size="large"
+                  sx={{ 
+                    borderRadius: 2,
+                    px: 4,
+                    py: 1,
+                    textTransform: 'none',
+                    fontWeight: 600
+                  }} 
+                  onClick={() => window.location.href = '/technicians'}
+                >
+                  Go to Technician Performance
+                </Button>
+              </Box>
+            )}
+          </Box>
         </Box>
       </Fade>
     </Container>

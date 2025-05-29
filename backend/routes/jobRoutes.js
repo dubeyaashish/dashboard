@@ -1,11 +1,138 @@
-// routes/jobRoutes.js
+// File: backend/routes/jobRoutes.js (Complete version with filter options)
 import express from 'express';
+import mongoose from 'mongoose';
 import Job from '../models/Job.js';
 import JobLocation from '../models/JobLocation.js';
 import TechnicianProfile from '../models/TechnicianProfile.js';
 import PrecomputedMetrics from '../models/PrecomputedMetrics.js';
 
 const router = express.Router();
+
+router.get('/filter-options', async (req, res) => {
+  try {
+    console.log('=== DEBUG: Starting filter options fetch ===');
+    
+    // Test 1: Check if Job collection is accessible
+    console.log('Testing Job collection...');
+    const jobCount = await Job.countDocuments();
+    console.log('Job count:', jobCount);
+    
+    // Test 2: Get distinct statuses (simple query)
+    console.log('Getting distinct statuses...');
+    const statuses = await Job.distinct('status');
+    console.log('Statuses found:', statuses);
+    
+    // Test 3: Get distinct types
+    console.log('Getting distinct types...');
+    const types = await Job.distinct('type');
+    console.log('Types found:', types);
+    
+    // Test 4: Get distinct priorities
+    console.log('Getting distinct priorities...');
+    const priorities = await Job.distinct('priority');
+    console.log('Priorities found:', priorities);
+    
+    // Test 5: Check JobLocation collection
+    console.log('Testing JobLocation collection...');
+    const locationCount = await JobLocation.countDocuments();
+    console.log('JobLocation count:', locationCount);
+    
+    // Test 6: Get provinces (with error handling)
+    let provinces = [];
+    try {
+      console.log('Getting distinct provinces...');
+      provinces = await JobLocation.distinct('province');
+      console.log('Provinces found:', provinces.length, provinces);
+    } catch (provinceError) {
+      console.error('Error getting provinces:', provinceError.message);
+      provinces = [];
+    }
+    
+    // Test 7: Check TechnicianProfile collection
+    console.log('Testing TechnicianProfile collection...');
+    const techCount = await TechnicianProfile.countDocuments();
+    console.log('TechnicianProfile count:', techCount);
+    
+    // Test 8: Get technicians (with error handling)
+    let technicians = [];
+    try {
+      console.log('Getting technicians...');
+      const techDocs = await TechnicianProfile.find({ status: 'ACTIVE' }).limit(5);
+      console.log('Sample technicians found:', techDocs.length);
+      
+      technicians = techDocs.map(tech => ({
+        id: tech._id.toString(),
+        firstName: tech.firstName || '',
+        lastName: tech.lastName || '',
+        code: tech.code || '',
+        position: tech.position || '',
+        type: tech.type || '',
+        fullName: `${tech.firstName || ''} ${tech.lastName || ''}`.trim(),
+        displayName: `${tech.firstName || ''} ${tech.lastName || ''}${tech.code ? ` (${tech.code})` : ''}${tech.position ? ` - ${tech.position}` : ''}`.trim()
+      }));
+      
+      console.log('Formatted technicians:', technicians.length);
+    } catch (techError) {
+      console.error('Error getting technicians:', techError.message);
+      technicians = [];
+    }
+    
+    // Test 9: Get team leaders
+    const teamLeaders = technicians
+      .filter(tech => 
+        tech.position && (
+          tech.position.includes('LEADER') || 
+          tech.position.includes('HEAD') || 
+          tech.position.includes('MANAGER') ||
+          tech.position.includes('SUPERVISOR')
+        )
+      )
+      .map(tech => tech.fullName);
+    
+    console.log('Team leaders found:', teamLeaders);
+    console.log('=== DEBUG: All data collected successfully ===');
+    
+    // Return the response
+    const responseData = {
+      success: true,
+      data: {
+        statuses: ['All', ...statuses.filter(s => s && s.trim()).sort()],
+        types: ['All', ...types.filter(t => t && t.trim()).sort()],
+        priorities: ['All', ...priorities.filter(p => p && p.trim()).sort()],
+        provinces: ['All', ...provinces.filter(p => p && p.trim()).sort()],
+        technicians: technicians,
+        teamLeaders: ['All', ...teamLeaders.sort()]
+      },
+      debug: {
+        jobCount,
+        locationCount,
+        techCount,
+        statusesCount: statuses.length,
+        typesCount: types.length,
+        prioritiesCount: priorities.length,
+        provincesCount: provinces.length,
+        techniciansCount: technicians.length,
+        teamLeadersCount: teamLeaders.length
+      }
+    };
+    
+    console.log('Sending response:', JSON.stringify(responseData, null, 2));
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('=== ERROR in filter-options route ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Get job overview data with pagination
 router.get('/overview', async (req, res) => {
   try {

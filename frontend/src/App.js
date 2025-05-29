@@ -1,10 +1,10 @@
-// File: frontend/src/App.js (Updated to include LanguageProvider)
+// File: frontend/src/App.js (Fixed UI Layout Issues)
 import React, { useState, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Box, CssBaseline, Toolbar } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { FilterProvider } from './context/FilterContext';
-import { LanguageProvider } from './context/LanguageContext'; // Import LanguageProvider
+import { LanguageProvider } from './context/LanguageContext';
 
 // Layout components
 import Header from './components/layout/Header';
@@ -16,10 +16,13 @@ import CustomerView from './pages/CustomerView';
 import TechnicianPerformance from './pages/TechnicianPerformance';
 import MapView from './pages/MapView';
 
+const DRAWER_WIDTH = 130;
+const HEADER_HEIGHT = 64;
+
 const App = () => {
   const [drawerOpen, setDrawerOpen] = useState(true);
   
-  // Define the dark midnight theme
+  // Define the dark midnight theme with improved z-index values
   const theme = useMemo(() => createTheme({
     palette: {
       mode: 'dark',
@@ -77,6 +80,17 @@ const App = () => {
       h6: {
         fontWeight: 600,
       },
+    },
+    // FIXED: Improved z-index system
+    zIndex: {
+      mobileStepper: 1000,
+      fab: 1050,
+      speedDial: 1050,
+      appBar: 1200, // Higher than default
+      drawer: 1100,  // Lower than appBar
+      modal: 1300,
+      snackbar: 1400,
+      tooltip: 1500,
     },
     components: {
       MuiCssBaseline: {
@@ -142,6 +156,8 @@ const App = () => {
           paper: {
             background: 'linear-gradient(180deg, #0F172A 0%, #1E293B 100%)',
             borderRight: '1px solid rgba(148, 163, 184, 0.12)',
+            // FIXED: Ensure drawer stays below AppBar
+            zIndex: 1100,
           },
         },
       },
@@ -150,6 +166,9 @@ const App = () => {
           root: {
             background: 'linear-gradient(90deg, #0F172A 0%, #1E293B 100%)',
             boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            // FIXED: Ensure AppBar is always on top
+            zIndex: 1200,
+            backdropFilter: 'blur(8px)',
           },
         },
       },
@@ -196,29 +215,37 @@ const App = () => {
 
   return (
     <ThemeProvider theme={theme}>
-      {/* Wrap entire app in LanguageProvider */}
       <LanguageProvider>
         <FilterProvider>
           <Router>
-            <Box sx={{ display: 'flex' }}>
+            <Box sx={{ display: 'flex', minHeight: '100vh' }}>
               <CssBaseline />
+              
+              {/* FIXED: Header with proper z-index */}
               <Header toggleDrawer={toggleDrawer} />
+              
+              {/* FIXED: Sidebar with proper positioning */}
               <Sidebar open={drawerOpen} />
+              
+              {/* FIXED: Main content area with proper spacing and positioning */}
               <Box
                 component="main"
                 sx={{
                   flexGrow: 1,
-                  p: 0,
-                  width: { sm: `calc(100% - ${drawerOpen ? 200 : 0}px)` },
-                  ml: { sm: `${drawerOpen ? 100 : 0}px` },
-                  transition: theme => theme.transitions.create(['margin', 'width'], {
+                  // FIXED: Proper spacing from top and left
+                  pt: `${HEADER_HEIGHT + 16}px`, // Header height + padding
+                  pl: drawerOpen ? `${DRAWER_WIDTH}px` : '0px',
+                  minHeight: '100vh',
+                  backgroundColor: theme.palette.background.default,
+                  transition: theme.transitions.create(['padding-left'], {
                     easing: theme.transitions.easing.sharp,
                     duration: theme.transitions.duration.leavingScreen,
                   }),
-                  pl: 0, // Completely remove left padding
+                  // FIXED: Ensure content doesn't get hidden behind fixed elements
+                  position: 'relative',
+                  zIndex: 1,
                 }}
               >
-                <Toolbar /> {/* For spacing below app bar */}
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/customers" element={<CustomerView />} />

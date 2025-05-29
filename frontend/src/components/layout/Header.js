@@ -1,4 +1,4 @@
-// File: frontend/src/components/layout/Header.js
+// File: frontend/src/components/layout/Header.js (Fixed positioning and z-index)
 import React from 'react';
 import { 
   AppBar, 
@@ -26,8 +26,10 @@ import {
   DarkMode as DarkModeIcon,
   Help as HelpIcon
 } from '@mui/icons-material';
-import LanguageSwitcher from './LanguageSwitcher'; // Import the language switcher
-import { useLanguage } from '../../context/LanguageContext'; // Import the useLanguage hook
+import LanguageSwitcher from './LanguageSwitcher';
+import { useLanguage } from '../../context/LanguageContext';
+
+const HEADER_HEIGHT = 64;
 
 const Header = ({ toggleDrawer }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -35,7 +37,7 @@ const Header = ({ toggleDrawer }) => {
   const open = Boolean(anchorEl);
   const notificationsOpen = Boolean(notificationsAnchorEl);
   const theme = useTheme();
-  const { t } = useLanguage(); // Get the translate function
+  const { t } = useLanguage();
   
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -56,32 +58,48 @@ const Header = ({ toggleDrawer }) => {
   return (
     <AppBar 
       position="fixed" 
-      elevation={0}
+      elevation={2}
       sx={{ 
-        zIndex: (theme) => theme.zIndex.drawer + 1,
-        backdropFilter: 'blur(8px)',
-        background: alpha(theme.palette.background.default, 0.8)
+        // FIXED: Ensure header is always on top
+        zIndex: theme.zIndex.drawer + 1,
+        height: HEADER_HEIGHT,
+        backdropFilter: 'blur(12px)',
+        background: `linear-gradient(90deg, ${alpha(theme.palette.background.default, 0.95)}, ${alpha(theme.palette.background.paper, 0.95)})`,
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+        boxShadow: `0 2px 8px ${alpha(theme.palette.background.default, 0.3)}`,
       }}
     >
-      <Toolbar>
+      <Toolbar sx={{ height: HEADER_HEIGHT, minHeight: `${HEADER_HEIGHT}px !important` }}>
         <IconButton
           color="inherit"
           aria-label="open drawer"
           edge="start"
           onClick={toggleDrawer}
-          sx={{ mr: 2 }}
+          sx={{ 
+            mr: 2,
+            '&:hover': {
+              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+            }
+          }}
         >
           <MenuIcon />
         </IconButton>
         
-        {/* Search Bar */}
+        {/* FIXED: Search Bar with better positioning */}
         <Box 
           sx={{ 
             position: 'relative', 
             borderRadius: 2,
             backgroundColor: alpha(theme.palette.common.white, 0.08),
+            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
             '&:hover': {
               backgroundColor: alpha(theme.palette.common.white, 0.12),
+              borderColor: alpha(theme.palette.primary.main, 0.3),
+            },
+            '&:focus-within': {
+              backgroundColor: alpha(theme.palette.common.white, 0.15),
+              borderColor: theme.palette.primary.main,
+              boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`,
             },
             marginRight: 2,
             marginLeft: 0,
@@ -93,8 +111,17 @@ const Header = ({ toggleDrawer }) => {
             display: { xs: 'none', md: 'block' }
           }}
         >
-          <Box sx={{ padding: theme.spacing(0, 2), height: '100%', position: 'absolute', pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <SearchIcon />
+          <Box sx={{ 
+            padding: theme.spacing(0, 2), 
+            height: '100%', 
+            position: 'absolute', 
+            pointerEvents: 'none', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            color: theme.palette.text.secondary
+          }}>
+            <SearchIcon fontSize="small" />
           </Box>
           <InputBase
             placeholder={t("Search jobs, customers, technicians...")}
@@ -114,30 +141,53 @@ const Header = ({ toggleDrawer }) => {
           />
         </Box>
         
+        {/* FIXED: Title with better responsive behavior */}
         <Typography 
           variant="h6" 
           component="div" 
           sx={{ 
             flexGrow: 1,
-            display: { xs: 'none', sm: 'block' }
+            display: { xs: 'block', sm: 'block' },
+            fontSize: { xs: '1rem', sm: '1.25rem' },
+            fontWeight: 600,
+            background: `linear-gradient(90deg, ${theme.palette.text.primary}, ${alpha(theme.palette.primary.main, 0.8)})`,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
           }}
         >
           {t("Job Management Dashboard")}
         </Typography>
         
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        {/* FIXED: Action buttons with better spacing */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           {/* Language Switcher */}
           <LanguageSwitcher />
           
           <Tooltip title={t("Help")}>
-            <IconButton color="inherit" sx={{ mx: 0.5 }}>
-              <HelpIcon />
+            <IconButton 
+              color="inherit" 
+              size="small"
+              sx={{
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                }
+              }}
+            >
+              <HelpIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           
           <Tooltip title={t("Theme")}>
-            <IconButton color="inherit" sx={{ mx: 0.5 }}>
-              <DarkModeIcon />
+            <IconButton 
+              color="inherit" 
+              size="small"
+              sx={{
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                }
+              }}
+            >
+              <DarkModeIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           
@@ -145,8 +195,11 @@ const Header = ({ toggleDrawer }) => {
             <IconButton 
               color="inherit" 
               onClick={handleNotificationsClick}
+              size="small"
               sx={{ 
-                mx: 0.5,
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                },
                 '& .MuiBadge-badge': {
                   boxShadow: `0 0 0 2px ${theme.palette.background.paper}`
                 }
@@ -155,26 +208,39 @@ const Header = ({ toggleDrawer }) => {
               <Badge 
                 badgeContent={4} 
                 color="error"
+                sx={{
+                  '& .MuiBadge-badge': {
+                    fontSize: '0.7rem',
+                    height: 16,
+                    minWidth: 16,
+                  }
+                }}
               >
-                <NotificationsIcon />
+                <NotificationsIcon fontSize="small" />
               </Badge>
             </IconButton>
           </Tooltip>
           
+          {/* FIXED: Notifications Menu with proper z-index */}
           <Menu
             anchorEl={notificationsAnchorEl}
             open={notificationsOpen}
             onClose={handleNotificationsClose}
             transformOrigin={{ horizontal: 'right', vertical: 'top' }}
             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            sx={{ zIndex: theme.zIndex.modal }}
             PaperProps={{
-              elevation: 4,
+              elevation: 8,
               sx: {
                 mt: 1.5,
                 width: 320,
+                maxWidth: '90vw',
                 borderRadius: 2,
                 overflow: 'visible',
                 filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                background: `linear-gradient(145deg, ${theme.palette.background.paper}, ${alpha(theme.palette.background.default, 0.95)})`,
+                backdropFilter: 'blur(12px)',
+                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                 '&:before': {
                   content: '""',
                   display: 'block',
@@ -191,31 +257,48 @@ const Header = ({ toggleDrawer }) => {
             }}
           >
             <Box p={2}>
-              <Typography variant="subtitle1" fontWeight={600}>{t("Recent Notifications")}</Typography>
+              <Typography variant="subtitle1" fontWeight={600}>
+                {t("Recent Notifications")}
+              </Typography>
             </Box>
             <MenuItem onClick={handleNotificationsClose}>
               <Box sx={{ width: '100%' }}>
-                <Typography variant="body2" fontWeight={500}>{t("New job assigned (#JOB-1234)")}</Typography>
-                <Typography variant="caption" color="text.secondary">{t("10 minutes ago")}</Typography>
+                <Typography variant="body2" fontWeight={500}>
+                  {t("New job assigned (#JOB-1234)")}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t("10 minutes ago")}
+                </Typography>
               </Box>
             </MenuItem>
             <MenuItem onClick={handleNotificationsClose}>
               <Box sx={{ width: '100%' }}>
-                <Typography variant="body2" fontWeight={500}>{t("Customer review received")}</Typography>
-                <Typography variant="caption" color="text.secondary">{t("1 hour ago")}</Typography>
+                <Typography variant="body2" fontWeight={500}>
+                  {t("Customer review received")}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t("1 hour ago")}
+                </Typography>
               </Box>
             </MenuItem>
             <MenuItem onClick={handleNotificationsClose}>
               <Box sx={{ width: '100%' }}>
-                <Typography variant="body2" fontWeight={500}>{t("Job status update: Completed")}</Typography>
-                <Typography variant="caption" color="text.secondary">{t("3 hours ago")}</Typography>
+                <Typography variant="body2" fontWeight={500}>
+                  {t("Job status update: Completed")}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t("3 hours ago")}
+                </Typography>
               </Box>
             </MenuItem>
             <Box p={1.5} display="flex" justifyContent="center">
-              <Button size="small" color="primary">{t("View all notifications")}</Button>
+              <Button size="small" color="primary">
+                {t("View all notifications")}
+              </Button>
             </Box>
           </Menu>
           
+          {/* FIXED: User avatar with better positioning */}
           <Box sx={{ ml: 1 }}>
             <Tooltip title={t("Account settings")}>
               <IconButton
@@ -225,14 +308,20 @@ const Header = ({ toggleDrawer }) => {
                 aria-haspopup="true"
                 aria-expanded={open ? 'true' : undefined}
                 color="inherit"
-                sx={{ p: 0.5 }}
+                sx={{ 
+                  p: 0.5,
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                  }
+                }}
               >
                 <Avatar 
                   sx={{ 
                     width: 32, 
                     height: 32, 
                     bgcolor: theme.palette.primary.main,
-                    border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`
+                    border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                    boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
                   }}
                 >
                   <PersonIcon fontSize="small" />
@@ -240,6 +329,7 @@ const Header = ({ toggleDrawer }) => {
               </IconButton>
             </Tooltip>
             
+            {/* FIXED: Account Menu with proper z-index */}
             <Menu
               id="account-menu"
               anchorEl={anchorEl}
@@ -247,14 +337,18 @@ const Header = ({ toggleDrawer }) => {
               onClose={handleClose}
               transformOrigin={{ horizontal: 'right', vertical: 'top' }}
               anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+              sx={{ zIndex: theme.zIndex.modal }}
               PaperProps={{
-                elevation: 4,
+                elevation: 8,
                 sx: {
                   mt: 1.5,
                   width: 200,
                   borderRadius: 2,
                   overflow: 'visible',
                   filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                  background: `linear-gradient(145deg, ${theme.palette.background.paper}, ${alpha(theme.palette.background.default, 0.95)})`,
+                  backdropFilter: 'blur(12px)',
+                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                   '&:before': {
                     content: '""',
                     display: 'block',
@@ -271,8 +365,12 @@ const Header = ({ toggleDrawer }) => {
               }}
             >
               <Box p={2} sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
-                <Typography variant="subtitle2" fontWeight={600}>{t("Admin User")}</Typography>
-                <Typography variant="caption" color="text.secondary">admin@example.com</Typography>
+                <Typography variant="subtitle2" fontWeight={600}>
+                  {t("Admin User")}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  admin@example.com
+                </Typography>
               </Box>
               <MenuItem onClick={handleClose} sx={{ py: 1.5 }}>
                 <PersonIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.secondary }} />
