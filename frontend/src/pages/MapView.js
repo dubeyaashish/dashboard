@@ -1,4 +1,4 @@
-// File: frontend/src/pages/MapView.js
+// File: frontend/src/pages/MapView.js (with FilterBar added)
 import React, { useState, useEffect } from 'react';
 import { 
   Container, 
@@ -35,6 +35,7 @@ import { getMapData, getGeographicAnalytics } from '../services/api';
 import FilterBar from '../components/layout/FilterBar';
 import JobMap from '../components/dashboard/JobMap';
 import BarChart from '../components/dashboard/BarChart';
+import { useLanguage } from '../context/LanguageContext';
 
 const MapView = () => {
   const { filters } = useFilters();
@@ -43,6 +44,7 @@ const MapView = () => {
   const [geoAnalytics, setGeoAnalytics] = useState(null);
   const [error, setError] = useState(null);
   const theme = useTheme();
+  const { t } = useLanguage(); // For translations
   
   // Fetch map data
   useEffect(() => {
@@ -62,7 +64,7 @@ const MapView = () => {
           setMapData(mapResponse.data);
         } else {
           console.error("Map data not successful:", mapResponse);
-          setError("Failed to load map data");
+          setError(t("Failed to load map data"));
         }
         
         if (geoResponse.success) {
@@ -70,11 +72,11 @@ const MapView = () => {
           setGeoAnalytics(geoResponse.data);
         } else {
           console.error("Geographic analytics not successful:", geoResponse);
-          setError(error => error || "Failed to load geographic analytics");
+          setError(error => error || t("Failed to load geographic analytics"));
         }
       } catch (error) {
         console.error('Error fetching geographic data:', error);
-        setError("An error occurred while loading data. Please check your connection.");
+        setError(t("An error occurred while loading data. Please check your connection."));
       } finally {
         setTimeout(() => {
           setLoading(false);
@@ -83,7 +85,7 @@ const MapView = () => {
     };
     
     fetchData();
-  }, [filters]);
+  }, [filters, t]);
   
   // Format province data for charts - similar to Streamlit implementation
   const formatProvinceData = (provinceData) => {
@@ -92,7 +94,7 @@ const MapView = () => {
     return provinceData
       .filter(item => item.province) // Ensure province exists
       .map(item => ({
-        name: item.province || 'Unknown',
+        name: item.province || t('Unknown'),
         count: item.count
       }))
       .sort((a, b) => b.count - a.count)
@@ -110,7 +112,7 @@ const MapView = () => {
         province.districts.forEach(district => {
           if (district.name) {
             districts.push({
-              name: `${district.name || 'Unknown'} (${province._id || 'Unknown'})`,
+              name: `${district.name || t('Unknown')} (${province._id || t('Unknown')})`,
               count: district.count
             });
           }
@@ -128,7 +130,7 @@ const MapView = () => {
     if (!geoAnalytics || !geoAnalytics.statusByProvince) return [];
     
     return geoAnalytics.statusByProvince.map(province => {
-      const statusObj = { province: province._id || 'Unknown', total: province.total || 0 };
+      const statusObj = { province: province._id || t('Unknown'), total: province.total || 0 };
       
       if (province.statuses && Array.isArray(province.statuses)) {
         province.statuses.forEach(status => {
@@ -153,11 +155,11 @@ const MapView = () => {
                 sx={{ display: 'flex', alignItems: 'center' }}
               >
                 <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-                Dashboard
+                {t('Dashboard')}
               </Link>
               <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
                 <LocationIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-                Geographic Analysis
+                {t('Geographic Analysis')}
               </Typography>
             </Breadcrumbs>
             
@@ -174,12 +176,11 @@ const MapView = () => {
               <Box display="flex" alignItems="center" mb={1}>
                 <MapIcon sx={{ color: theme.palette.primary.main, mr: 1 }} />
                 <Typography variant="h4" fontWeight="bold" sx={{ letterSpacing: '-0.05em' }}>
-                  Geographic Distribution Dashboard
+                  {t('Geographic Distribution Dashboard')}
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ mb: 3, maxWidth: '80%', color: theme.palette.text.secondary }}>
-                Visualize job distribution across provinces and districts. Analyze geographic patterns and identify 
-                high-activity areas with interactive maps and charts.
+                {t('Visualize job distribution across provinces and districts. Analyze geographic patterns and identify high-activity areas with interactive maps and charts.')}
               </Typography>
               <FilterBar />
             </Box>
@@ -209,10 +210,10 @@ const MapView = () => {
               <Box mb={2}>
                 <Typography variant="h5" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }}>
                   <LocationIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
-                  Job Distribution Map
+                  {t('Job Distribution Map')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" mb={2}>
-                  Geographical distribution of {mapData.length} jobs in the selected period.
+                  {t('Geographical distribution of')} {mapData.length} {t('jobs in the selected period')}.
                 </Typography>
               </Box>
               
@@ -228,7 +229,7 @@ const MapView = () => {
                 <Grid item xs={12} md={6}>
                   <BarChart 
                     data={formatProvinceData(geoAnalytics?.provinceData)} 
-                    title="Top Provinces by Job Volume" 
+                    title={t("Top Provinces by Job Volume")}
                     xAxisKey="name"
                     dataKey="count"
                     horizontal={true}
@@ -239,7 +240,7 @@ const MapView = () => {
                 <Grid item xs={12} md={6}>
                   <BarChart 
                     data={formatDistrictData(geoAnalytics?.districtBreakdown)} 
-                    title="Top Districts by Job Volume" 
+                    title={t("Top Districts by Job Volume")}
                     xAxisKey="name"
                     dataKey="count"
                     horizontal={true}
@@ -254,7 +255,7 @@ const MapView = () => {
                   <Box display="flex" alignItems="center" mb={2}>
                     <BusinessIcon sx={{ color: theme.palette.primary.main, mr: 1 }} />
                     <Typography variant="h5" fontWeight="bold">
-                      Status Distribution by Province
+                      {t("Status Distribution by Province")}
                     </Typography>
                   </Box>
                   
@@ -262,13 +263,13 @@ const MapView = () => {
                     <Table stickyHeader size="small">
                       <TableHead>
                         <TableRow>
-                          <TableCell>Province</TableCell>
-                          <TableCell align="center">Total Jobs</TableCell>
-                          <TableCell align="center">Waiting</TableCell>
-                          <TableCell align="center">Working</TableCell>
-                          <TableCell align="center">Completed</TableCell>
-                          <TableCell align="center">Closed</TableCell>
-                          <TableCell align="center">Cancelled</TableCell>
+                          <TableCell>{t("Province")}</TableCell>
+                          <TableCell align="center">{t("Total Jobs")}</TableCell>
+                          <TableCell align="center">{t("Waiting")}</TableCell>
+                          <TableCell align="center">{t("Working")}</TableCell>
+                          <TableCell align="center">{t("Completed")}</TableCell>
+                          <TableCell align="center">{t("Closed")}</TableCell>
+                          <TableCell align="center">{t("Cancelled")}</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -294,7 +295,7 @@ const MapView = () => {
                         ) : (
                           <TableRow>
                             <TableCell colSpan={7} align="center">
-                              No data available
+                              {t("No data available")}
                             </TableCell>
                           </TableRow>
                         )}
@@ -310,7 +311,7 @@ const MapView = () => {
                     <Box display="flex" alignItems="center" mb={2}>
                       <LocationIcon sx={{ color: theme.palette.warning.main, mr: 1 }} />
                       <Typography variant="h5" fontWeight="bold">
-                        Sample Job Locations
+                        {t("Sample Job Locations")}
                       </Typography>
                     </Box>
                     
@@ -318,15 +319,15 @@ const MapView = () => {
                       <Table stickyHeader size="small">
                         <TableHead>
                           <TableRow>
-                            <TableCell>Job No</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Type</TableCell>
-                            <TableCell>Priority</TableCell>
-                            <TableCell>Location</TableCell>
-                            <TableCell>Province</TableCell>
-                            <TableCell>District</TableCell>
-                            <TableCell>Customer</TableCell>
-                            <TableCell>Technician</TableCell>
+                            <TableCell>{t("Job No")}</TableCell>
+                            <TableCell>{t("Status")}</TableCell>
+                            <TableCell>{t("Type")}</TableCell>
+                            <TableCell>{t("Priority")}</TableCell>
+                            <TableCell>{t("Location")}</TableCell>
+                            <TableCell>{t("Province")}</TableCell>
+                            <TableCell>{t("District")}</TableCell>
+                            <TableCell>{t("Customer")}</TableCell>
+                            <TableCell>{t("Technician")}</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -335,7 +336,7 @@ const MapView = () => {
                               <TableCell>{job.jobNo}</TableCell>
                               <TableCell>
                                 <Chip 
-                                  label={job.status} 
+                                  label={t(job.status)} 
                                   size="small" 
                                   color={job.status === 'COMPLETED' ? 'success' : 
                                          job.status === 'WORKING' ? 'info' : 
@@ -345,11 +346,11 @@ const MapView = () => {
                               </TableCell>
                               <TableCell>{job.type}</TableCell>
                               <TableCell>{job.priority}</TableCell>
-                              <TableCell>{job.location?.name || 'N/A'}</TableCell>
-                              <TableCell>{job.location?.province || 'N/A'}</TableCell>
-                              <TableCell>{job.location?.district || 'N/A'}</TableCell>
-                              <TableCell>{job.customerName || 'N/A'}</TableCell>
-                              <TableCell>{job.technicianNames || 'N/A'}</TableCell>
+                              <TableCell>{job.location?.name || t('N/A')}</TableCell>
+                              <TableCell>{job.location?.province || t('N/A')}</TableCell>
+                              <TableCell>{job.location?.district || t('N/A')}</TableCell>
+                              <TableCell>{job.customerName || t('N/A')}</TableCell>
+                              <TableCell>{job.technicianNames || t('N/A')}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

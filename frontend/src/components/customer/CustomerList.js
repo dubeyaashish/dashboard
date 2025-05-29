@@ -1,4 +1,5 @@
-// File: frontend/src/components/customer/CustomerList.js
+// Example of how to update a component with translations
+// File: frontend/src/components/customer/CustomerList.js (with translations)
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -18,6 +19,7 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, Person as PersonIcon } from '@mui/icons-material';
 import { getCustomers } from '../../services/api';
+import { useLanguage } from '../../context/LanguageContext'; // Import the language hook
 
 const CustomerList = ({ onSelectCustomer, selectedCustomerId }) => {
   const [customers, setCustomers] = useState([]);
@@ -26,6 +28,7 @@ const CustomerList = ({ onSelectCustomer, selectedCustomerId }) => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState(null);
+  const { t } = useLanguage(); // Get the translate function
   const limit = 20;
 
   useEffect(() => {
@@ -41,11 +44,11 @@ const CustomerList = ({ onSelectCustomer, selectedCustomerId }) => {
           setTotalPages(Math.ceil(response.data.pagination.total / limit));
         } else {
           console.error("API returned error:", response);
-          setError("Failed to load customers");
+          setError(t("Failed to load customers"));
         }
       } catch (error) {
         console.error('Error fetching customers:', error);
-        setError("An error occurred while loading customers");
+        setError(t("An error occurred while loading customers"));
       } finally {
         setLoading(false);
       }
@@ -57,7 +60,7 @@ const CustomerList = ({ onSelectCustomer, selectedCustomerId }) => {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [page, search]);
+  }, [page, search, t]);
 
   const handleSearchChange = (event) => {
     setSearch(event.target.value);
@@ -68,29 +71,28 @@ const CustomerList = ({ onSelectCustomer, selectedCustomerId }) => {
     setPage(value);
   };
 
-  // Helper function to safely get customer display name
+  // Modified helper function to use locationName from JobLocation
   const getCustomerDisplayName = (customer) => {
-    if (!customer) return 'Unknown';
+    if (!customer) return t('Unknown');
     
-    // Try name field first
+    // Use locationName from the aggregation pipeline which gets it from JobLocation
+    if (customer.locationName) return customer.locationName;
+    
+    // Fallbacks if locationName is not available
     if (customer.name) return customer.name;
-    
-    // Fallback to code
-    if (customer.code) return customer.code;
-    
-    // If both are missing, use ID or "Unknown Customer"
-    return customer._id ? `Customer #${customer._id.toString().slice(-6)}` : 'Unknown Customer';
+    if (customer.code) return `${t('Code')}: ${customer.code}`;
+    return customer._id ? `${t('ID')}: ${customer._id.slice(-6)}` : t('Unknown Customer');
   };
 
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent>
-        <Typography variant="h6" gutterBottom>Customers</Typography>
+        <Typography variant="h6" gutterBottom>{t('Customers')}</Typography>
         
         <TextField
           fullWidth
           variant="outlined"
-          placeholder="Search customers..."
+          placeholder={t('Search customers...')}
           value={search}
           onChange={handleSearchChange}
           margin="normal"
@@ -139,7 +141,7 @@ const CustomerList = ({ onSelectCustomer, selectedCustomerId }) => {
                           <>
                             {customer.phone && <Typography component="span" variant="body2" display="block">{customer.phone}</Typography>}
                             {customer.email && <Typography component="span" variant="body2" color="text.secondary">{customer.email}</Typography>}
-                            {!customer.phone && !customer.email && <Typography component="span" variant="body2" color="text.secondary">{customer.customerType || 'No contact info'}</Typography>}
+                            {!customer.phone && !customer.email && <Typography component="span" variant="body2" color="text.secondary">{customer.customerType || t('No contact info')}</Typography>}
                           </>
                         } 
                       />
@@ -149,7 +151,7 @@ const CustomerList = ({ onSelectCustomer, selectedCustomerId }) => {
                 ))
               ) : (
                 <ListItem>
-                  <ListItemText primary="No customers found" />
+                  <ListItemText primary={t('No customers found')} />
                 </ListItem>
               )}
             </List>

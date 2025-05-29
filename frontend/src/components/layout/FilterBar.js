@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// Modified src/components/layout/FilterBar.js
+import React, { useState, useEffect } from 'react';
 import { 
   Paper, 
   Grid, 
@@ -17,7 +18,9 @@ import {
   Collapse,
   Typography,
   InputAdornment,
-  Badge
+  Badge,
+  Autocomplete,
+  CircularProgress
 } from '@mui/material';
 import { 
   DateRange as DateRangeIcon,
@@ -27,12 +30,15 @@ import {
   Search as SearchIcon,
   CalendarMonth as CalendarMonthIcon,
   Tune as TuneIcon,
-  Check as CheckIcon
+  Check as CheckIcon,
+  Engineering as EngineeringIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { useFilters } from '../../context/FilterContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { getTechnicians } from '../../services/api';
 
 // Helper function to get status color
 const getStatusColor = (status) => {
@@ -64,6 +70,31 @@ const FilterBar = () => {
   const { filters, filterOptions, updateFilters, resetFilters, setDateRange } = useFilters();
   const [expanded, setExpanded] = useState(false);
   const theme = useTheme();
+  const { t } = useLanguage(); // For translations
+  
+  // For technician filter
+  const [loading, setLoading] = useState(false);
+  const [technicians, setTechnicians] = useState([]);
+  const [selectedTechnician, setSelectedTechnician] = useState(null);
+  
+  // Load technicians
+  useEffect(() => {
+    const fetchTechnicians = async () => {
+      setLoading(true);
+      try {
+        const response = await getTechnicians();
+        if (response && response.success) {
+          setTechnicians(response.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching technicians:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTechnicians();
+  }, []);
   
   const handleToggleExpand = () => {
     setExpanded(!expanded);
@@ -73,8 +104,25 @@ const FilterBar = () => {
     setDateRange(range);
   };
   
+  // Handle technician selection
+  const handleTechnicianChange = (event, newValue) => {
+    setSelectedTechnician(newValue);
+    
+    if (newValue) {
+      updateFilters({ 
+        technician: `${newValue.firstName} ${newValue.lastName}`,
+        technicianId: newValue.id
+      });
+    } else {
+      updateFilters({ 
+        technician: 'All',
+        technicianId: null
+      });
+    }
+  };
+  
   const activeFiltersCount = Object.entries(filters).filter(([key, value]) => {
-    if (key === 'startDate' || key === 'endDate' || key === 'page' || key === 'limit') return false;
+    if (key === 'startDate' || key === 'endDate' || key === 'page' || key === 'limit' || key === 'technicianId') return false;
     return value !== 'All';
   }).length;
 
@@ -109,7 +157,7 @@ const FilterBar = () => {
             }} 
           />
           <Typography variant="subtitle1" fontWeight={600}>
-            Filter Jobs
+            {t("Filter Jobs")}
           </Typography>
           {activeFiltersCount > 0 && (
             <Badge 
@@ -124,7 +172,7 @@ const FilterBar = () => {
               }}
             >
               <Chip 
-                label="Active Filters" 
+                label={t("Active Filters")} 
                 size="small"
                 sx={{ 
                   bgcolor: alpha(theme.palette.primary.main, 0.1),
@@ -153,7 +201,7 @@ const FilterBar = () => {
               color: theme.palette.text.secondary
             }}
           >
-            {expanded ? 'Show Less' : 'Show More'}
+            {expanded ? t('Show Less') : t('Show More')}
           </Button>
         </Box>
       </Box>
@@ -161,10 +209,10 @@ const FilterBar = () => {
       <Collapse in={true}>
         <Box px={3} py={2.5}>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={expanded ? 4 : 3}>
+            <Grid item xs={12} md={expanded ? 3 : 2.4}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
-                  label="Start Date"
+                  label={t("Start Date")}
                   value={filters.startDate}
                   onChange={(newValue) => updateFilters({ startDate: newValue })}
                   slots={{
@@ -190,10 +238,10 @@ const FilterBar = () => {
               </LocalizationProvider>
             </Grid>
             
-            <Grid item xs={12} md={expanded ? 4 : 3}>
+            <Grid item xs={12} md={expanded ? 3 : 2.4}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
-                  label="End Date"
+                  label={t("End Date")}
                   value={filters.endDate}
                   onChange={(newValue) => updateFilters({ endDate: newValue })}
                   slots={{
@@ -219,7 +267,7 @@ const FilterBar = () => {
               </LocalizationProvider>
             </Grid>
             
-            <Grid item xs={12} md={expanded ? 4 : 3}>
+            <Grid item xs={12} md={expanded ? 3 : 2.4}>
               <FormControl 
                 fullWidth 
                 size="small"
@@ -233,10 +281,10 @@ const FilterBar = () => {
                   }
                 }}
               >
-                <InputLabel>Status</InputLabel>
+                <InputLabel>{t("Status")}</InputLabel>
                 <Select
                   value={filters.status}
-                  label="Status"
+                  label={t("Status")}
                   onChange={(e) => updateFilters({ status: e.target.value })}
                 >
                   {filterOptions.statuses.map((status) => (
@@ -257,7 +305,7 @@ const FilterBar = () => {
                         {status === 'All' && filters.status === 'All' && (
                           <CheckIcon fontSize="small" sx={{ mr: 1, color: theme.palette.primary.main }} />
                         )}
-                        {status}
+                        {t(status)}
                       </Box>
                     </MenuItem>
                   ))}
@@ -265,7 +313,7 @@ const FilterBar = () => {
               </FormControl>
             </Grid>
             
-            <Grid item xs={12} md={expanded ? 6 : 3}>
+            <Grid item xs={12} md={expanded ? 3 : 2.4}>
               <FormControl 
                 fullWidth 
                 size="small"
@@ -279,10 +327,10 @@ const FilterBar = () => {
                   }
                 }}
               >
-                <InputLabel>Priority</InputLabel>
+                <InputLabel>{t("Priority")}</InputLabel>
                 <Select
                   value={filters.priority}
-                  label="Priority"
+                  label={t("Priority")}
                   onChange={(e) => updateFilters({ priority: e.target.value })}
                 >
                   {filterOptions.priorities.map((priority) => (
@@ -303,7 +351,7 @@ const FilterBar = () => {
                         {priority === 'All' && filters.priority === 'All' && (
                           <CheckIcon fontSize="small" sx={{ mr: 1, color: theme.palette.primary.main }} />
                         )}
-                        {priority}
+                        {t(priority)}
                       </Box>
                     </MenuItem>
                   ))}
@@ -311,9 +359,68 @@ const FilterBar = () => {
               </FormControl>
             </Grid>
             
+            {/* Technician Selector - Always visible */}
+            <Grid item xs={12} md={expanded ? 4 : 2.4}>
+              <Autocomplete
+                id="technician-selector"
+                options={technicians}
+                getOptionLabel={(option) => `${option.firstName} ${option.lastName} ${option.position ? `(${option.position})` : ''}`}
+                value={selectedTechnician}
+                onChange={handleTechnicianChange}
+                loading={loading}
+                loadingText={t('Loading technicians...')}
+                noOptionsText={t('No technicians found')}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label={t('Technician')}
+                    size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                        backgroundColor: alpha(theme.palette.background.paper, 0.5),
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.background.paper, 0.8),
+                        }
+                      }
+                    }}
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <>
+                          <InputAdornment position="start">
+                            <EngineeringIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                          {params.InputProps.startAdornment}
+                        </>
+                      ),
+                      endAdornment: (
+                        <>
+                          {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props}>
+                    <Box display="flex" flexDirection="column">
+                      <Typography variant="body2">{`${option.firstName} ${option.lastName}`}</Typography>
+                      {option.position && (
+                        <Typography variant="caption" color="text.secondary">
+                          {option.position}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                )}
+              />
+            </Grid>
+            
             {expanded && (
               <>
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} md={4}>
                   <FormControl 
                     fullWidth 
                     size="small"
@@ -327,10 +434,10 @@ const FilterBar = () => {
                       }
                     }}
                   >
-                    <InputLabel>Job Type</InputLabel>
+                    <InputLabel>{t("Job Type")}</InputLabel>
                     <Select
                       value={filters.type}
-                      label="Job Type"
+                      label={t("Job Type")}
                       onChange={(e) => updateFilters({ type: e.target.value })}
                     >
                       {filterOptions.types.map((type) => (
@@ -338,14 +445,14 @@ const FilterBar = () => {
                           {type === 'All' && filters.type === 'All' && (
                             <CheckIcon fontSize="small" sx={{ mr: 1, color: theme.palette.primary.main }} />
                           )}
-                          {type}
+                          {t(type)}
                         </MenuItem>
                       ))}
                     </Select>
                   </FormControl>
                 </Grid>
                 
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} md={4}>
                   <FormControl 
                     fullWidth 
                     size="small"
@@ -359,10 +466,10 @@ const FilterBar = () => {
                       }
                     }}
                   >
-                    <InputLabel>Province</InputLabel>
+                    <InputLabel>{t("Province")}</InputLabel>
                     <Select
                       value={filters.province}
-                      label="Province"
+                      label={t("Province")}
                       onChange={(e) => updateFilters({ province: e.target.value })}
                     >
                       {filterOptions.provinces.map((province) => (
@@ -370,14 +477,14 @@ const FilterBar = () => {
                           {province === 'All' && filters.province === 'All' && (
                             <CheckIcon fontSize="small" sx={{ mr: 1, color: theme.palette.primary.main }} />
                           )}
-                          {province}
+                          {t(province)}
                         </MenuItem>
                       ))}
                     </Select>
                   </FormControl>
                 </Grid>
                 
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} md={4}>
                   <FormControl 
                     fullWidth 
                     size="small"
@@ -391,10 +498,10 @@ const FilterBar = () => {
                       }
                     }}
                   >
-                    <InputLabel>Team Leader</InputLabel>
+                    <InputLabel>{t("Team Leader")}</InputLabel>
                     <Select
                       value={filters.teamLeader}
-                      label="Team Leader"
+                      label={t("Team Leader")}
                       onChange={(e) => updateFilters({ teamLeader: e.target.value })}
                     >
                       {filterOptions.teamLeaders.map((leader) => (
@@ -402,7 +509,7 @@ const FilterBar = () => {
                           {leader === 'All' && filters.teamLeader === 'All' && (
                             <CheckIcon fontSize="small" sx={{ mr: 1, color: theme.palette.primary.main }} />
                           )}
-                          {leader}
+                          {t(leader)}
                         </MenuItem>
                       ))}
                     </Select>
@@ -441,7 +548,7 @@ const FilterBar = () => {
               }
             }}
           >
-            Last 7 Days
+            {t("Last 7 Days")}
           </Button>
           <Button 
             variant="outlined" 
@@ -459,7 +566,7 @@ const FilterBar = () => {
               }
             }}
           >
-            Last 30 Days
+            {t("Last 30 Days")}
           </Button>
           <Button 
             variant="outlined" 
@@ -477,7 +584,7 @@ const FilterBar = () => {
               }
             }}
           >
-            This Month
+            {t("This Month")}
           </Button>
         </Box>
       )}
@@ -493,7 +600,7 @@ const FilterBar = () => {
         }}
       >
         <Box display="flex" alignItems="center">
-          <Tooltip title="Reset filters">
+          <Tooltip title={t("Reset filters")}>
             <IconButton 
               size="small" 
               onClick={resetFilters}
@@ -503,7 +610,7 @@ const FilterBar = () => {
             </IconButton>
           </Tooltip>
           
-          <Tooltip title="Toggle filter view">
+          <Tooltip title={t("Toggle filter view")}>
             <IconButton 
               size="small" 
               onClick={handleToggleExpand}
@@ -529,7 +636,7 @@ const FilterBar = () => {
             }
           }}
         >
-          Apply Filters
+          {t("Apply Filters")}
         </Button>
       </Box>
     </Paper>

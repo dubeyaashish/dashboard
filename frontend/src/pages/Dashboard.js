@@ -1,9 +1,8 @@
-// src/pages/Dashboard.js
+// Modified src/pages/Dashboard.js with map removed
 import React, { useState, useEffect } from 'react';
 import { 
   Container, 
   Grid, 
-  Paper, 
   Box, 
   Typography, 
   Tabs, 
@@ -22,28 +21,25 @@ import {
   Business as BusinessIcon, 
   AssignmentTurnedIn as AssignmentIcon,
   Today as TodayIcon,
-  LocationOn as LocationIcon,
   Person as PersonIcon,
   Engineering as EngineeringIcon,
   MoreVert as MoreVertIcon,
   TrendingUp as TrendingUpIcon
 } from '@mui/icons-material';
 import { useFilters } from '../context/FilterContext';
-import { getJobOverview, getMapData } from '../services/api';
+import { getJobOverview } from '../services/api';
 import FilterBar from '../components/layout/FilterBar';
 import MetricCard from '../components/dashboard/metricCard';
 import StatusPieChart from '../components/dashboard/StatusPieChart';
 import BarChart from '../components/dashboard/BarChart';
 import DataTable from '../components/dashboard/DataTable';
-import JobMap from '../components/dashboard/JobMap';
+ // Import TechnicianFilter
 
 const Dashboard = () => {
   const { filters, updateFilters } = useFilters();
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
-  const [mapData, setMapData] = useState([]);
-  const [mapLoading, setMapLoading] = useState(true);
   const theme = useTheme();
   
   // Fetch dashboard overview data
@@ -66,29 +62,6 @@ const Dashboard = () => {
     
     fetchDashboardData();
   }, [filters]);
-  
-  // Fetch map data when the map tab is active
-  useEffect(() => {
-    if (tabValue === 0) {
-      const fetchMapData = async () => {
-        setMapLoading(true);
-        try {
-          const response = await getMapData(filters);
-          if (response.success) {
-            setMapData(response.data);
-          }
-        } catch (error) {
-          console.error('Error fetching map data:', error);
-        } finally {
-          setTimeout(() => {
-            setMapLoading(false);
-          }, 1000); // Add a small delay to make loading feel more natural
-        }
-      };
-      
-      fetchMapData();
-    }
-  }, [tabValue, filters]);
   
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -129,6 +102,8 @@ const Dashboard = () => {
               Use filters to analyze specific time periods and job types.
             </Typography>
             <FilterBar />
+            
+
           </Box>
           
           {/* Metric Cards */}
@@ -324,44 +299,6 @@ const Dashboard = () => {
                   </Fade>
                 </Grid>
               </Grid>
-              
-              <Box 
-                mb={2} 
-                sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
-                <Box display="flex" alignItems="center">
-                  <LocationIcon sx={{ color: theme.palette.primary.main, mr: 1 }} />
-                  <Typography variant="h5" fontWeight="bold">
-                    Job Map
-                  </Typography>
-                </Box>
-                
-                <Box>
-                  <Chip 
-                    label={`${mapData.length} Jobs`} 
-                    size="small" 
-                    color="primary" 
-                    sx={{ 
-                      fontWeight: 500,
-                      background: alpha(theme.palette.primary.main, 0.2),
-                      color: theme.palette.primary.light,
-                      border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
-                    }} 
-                  />
-                </Box>
-              </Box>
-              
-              <Box mb={4} sx={{ height: 600 }}>
-                <JobMap 
-                  data={mapData} 
-                  title="Job Distribution Map" 
-                  loading={mapLoading} 
-                />
-              </Box>
               
               <Divider 
                 sx={{ 

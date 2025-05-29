@@ -64,14 +64,16 @@ const JobHistory = ({ customerId, onSelectJob }) => {
       return;
     }
 
-    // Convert ObjectId to string if it's an object
-    const customerIdStr = typeof customerId === 'object' ? customerId.toString() : customerId;
+    // Make sure customerId is a string
+    const customerIdStr = typeof customerId === 'object' ? 
+      customerId.toString() : String(customerId);
+    
+    console.log(`JobHistory: Fetching jobs for customer ID: ${customerIdStr} (type: ${typeof customerIdStr})`);
     
     const fetchJobs = async () => {
       setLoading(true);
       setError(null);
       try {
-        console.log(`Fetching jobs for customer ID: ${customerIdStr}`);
         const response = await getCustomerJobs(customerIdStr, { page, limit });
         
         if (response.success) {
@@ -80,7 +82,7 @@ const JobHistory = ({ customerId, onSelectJob }) => {
           setTotalPages(Math.ceil(response.data.pagination.total / limit));
         } else {
           console.error("API returned error:", response);
-          setError("Failed to load job history");
+          setError("Failed to load job history: " + (response.error || "Unknown error"));
         }
       } catch (error) {
         console.error('Error fetching customer jobs:', error);
@@ -180,14 +182,16 @@ const JobHistory = ({ customerId, onSelectJob }) => {
               </Table>
             </TableContainer>
             
-            <Box display="flex" justifyContent="center" mt={2}>
-              <Pagination 
-                count={totalPages} 
-                page={page} 
-                onChange={handlePageChange} 
-                color="primary" 
-              />
-            </Box>
+            {jobs.length > 0 && (
+              <Box display="flex" justifyContent="center" mt={2}>
+                <Pagination 
+                  count={totalPages} 
+                  page={page} 
+                  onChange={handlePageChange} 
+                  color="primary" 
+                />
+              </Box>
+            )}
           </>
         )}
       </CardContent>

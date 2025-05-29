@@ -1,4 +1,4 @@
-// File: frontend/src/pages/TechnicianPerformance.js
+// File: frontend/src/pages/TechnicianPerformance.js (with FilterBar added)
 import React, { useState, useEffect } from 'react';
 import { 
   Container, 
@@ -35,6 +35,7 @@ import { useFilters } from '../context/FilterContext';
 import { getTechnicianPerformance } from '../services/api';
 import FilterBar from '../components/layout/FilterBar';
 import BarChart from '../components/dashboard/BarChart';
+import { useLanguage } from '../context/LanguageContext';
 
 const TechnicianPerformance = () => {
   const { filters } = useFilters();
@@ -42,6 +43,7 @@ const TechnicianPerformance = () => {
   const [performanceData, setPerformanceData] = useState(null);
   const [error, setError] = useState(null);
   const theme = useTheme();
+  const { t } = useLanguage(); // For translations
   
   useEffect(() => {
     const fetchPerformanceData = async () => {
@@ -50,7 +52,8 @@ const TechnicianPerformance = () => {
       try {
         const response = await getTechnicianPerformance({
           startDate: filters.startDate,
-          endDate: filters.endDate
+          endDate: filters.endDate,
+          technicianId: filters.technicianId // Pass technician ID from filters
         });
         
         if (response.success) {
@@ -58,11 +61,11 @@ const TechnicianPerformance = () => {
           setPerformanceData(response.data);
         } else {
           console.error("API returned error:", response);
-          setError("Failed to load technician data. Please try again.");
+          setError(t("Failed to load technician data. Please try again."));
         }
       } catch (error) {
         console.error('Error fetching technician performance data:', error);
-        setError("An error occurred while loading data. Please check your connection.");
+        setError(t("An error occurred while loading data. Please check your connection."));
       } finally {
         setTimeout(() => {
           setLoading(false);
@@ -71,10 +74,10 @@ const TechnicianPerformance = () => {
     };
     
     fetchPerformanceData();
-  }, [filters.startDate, filters.endDate]);
+  }, [filters.startDate, filters.endDate, filters.technicianId, t]);
   
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return t('N/A');
     const date = new Date(dateString);
     return date.toLocaleString();
   };
@@ -105,11 +108,11 @@ const TechnicianPerformance = () => {
                 sx={{ display: 'flex', alignItems: 'center' }}
               >
                 <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-                Dashboard
+                {t('Dashboard')}
               </Link>
               <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
                 <EngineeringIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-                Technician Performance
+                {t('Technician Performance')}
               </Typography>
             </Breadcrumbs>
             
@@ -126,12 +129,11 @@ const TechnicianPerformance = () => {
               <Box display="flex" alignItems="center" mb={1}>
                 <TrendingUpIcon sx={{ color: theme.palette.primary.main, mr: 1 }} />
                 <Typography variant="h4" fontWeight="bold" sx={{ letterSpacing: '-0.05em' }}>
-                  Technician Performance Dashboard
+                  {t('Technician Performance Dashboard')}
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ mb: 3, maxWidth: '80%', color: theme.palette.text.secondary }}>
-                Analyze technician performance, efficiency, and customer satisfaction ratings. 
-                View detailed metrics of each technician's work quality and service levels.
+                {t('Analyze technician performance, efficiency, and customer satisfaction ratings. View detailed metrics of each technician\'s work quality and service levels.')}
               </Typography>
               <FilterBar />
             </Box>
@@ -162,7 +164,7 @@ const TechnicianPerformance = () => {
                 <Grid item xs={12} md={6}>
                   <BarChart 
                     data={prepareRatingData('overall')} 
-                    title="Overall Rating by Technician" 
+                    title={t("Overall Rating by Technician")} 
                     xAxisKey="name"
                     dataKey="value"
                     color="#6366F1" // Purple
@@ -172,7 +174,7 @@ const TechnicianPerformance = () => {
                 <Grid item xs={12} md={6}>
                   <BarChart 
                     data={prepareRatingData('recommend')} 
-                    title="Recommendation Rating" 
+                    title={t("Recommendation Rating")} 
                     xAxisKey="name"
                     dataKey="value"
                     color="#EC4899" // Pink
@@ -185,7 +187,7 @@ const TechnicianPerformance = () => {
                 <Grid item xs={12} md={4}>
                   <BarChart 
                     data={prepareRatingData('time')} 
-                    title="Timeliness Rating" 
+                    title={t("Timeliness Rating")} 
                     xAxisKey="name"
                     dataKey="value"
                     color="#10B981" // Green
@@ -195,7 +197,7 @@ const TechnicianPerformance = () => {
                 <Grid item xs={12} md={4}>
                   <BarChart 
                     data={prepareRatingData('manner')} 
-                    title="Manner Rating" 
+                    title={t("Manner Rating")} 
                     xAxisKey="name"
                     dataKey="value"
                     color="#F59E0B" // Amber
@@ -205,7 +207,7 @@ const TechnicianPerformance = () => {
                 <Grid item xs={12} md={4}>
                   <BarChart 
                     data={prepareRatingData('knowledge')} 
-                    title="Knowledge Rating" 
+                    title={t("Knowledge Rating")} 
                     xAxisKey="name"
                     dataKey="value"
                     color="#3B82F6" // Blue
@@ -219,7 +221,7 @@ const TechnicianPerformance = () => {
                   <Box display="flex" alignItems="center" mb={2}>
                     <AssessmentIcon sx={{ color: theme.palette.primary.main, mr: 1 }} />
                     <Typography variant="h5" fontWeight="bold">
-                      Performance Summary
+                      {t("Performance Summary")}
                     </Typography>
                   </Box>
                   
@@ -227,13 +229,13 @@ const TechnicianPerformance = () => {
                     <Table stickyHeader size="small">
                       <TableHead>
                         <TableRow>
-                          <TableCell>Technician</TableCell>
-                          <TableCell align="center">Overall Rating</TableCell>
-                          <TableCell align="center">Time</TableCell>
-                          <TableCell align="center">Manner</TableCell>
-                          <TableCell align="center">Knowledge</TableCell>
-                          <TableCell align="center">Recommend</TableCell>
-                          <TableCell align="center">Review Count</TableCell>
+                          <TableCell>{t("Technician")}</TableCell>
+                          <TableCell align="center">{t("Overall Rating")}</TableCell>
+                          <TableCell align="center">{t("Time")}</TableCell>
+                          <TableCell align="center">{t("Manner")}</TableCell>
+                          <TableCell align="center">{t("Knowledge")}</TableCell>
+                          <TableCell align="center">{t("Recommend")}</TableCell>
+                          <TableCell align="center">{t("Review Count")}</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -262,7 +264,7 @@ const TechnicianPerformance = () => {
                         ) : (
                           <TableRow>
                             <TableCell colSpan={7} align="center">
-                              No performance data available
+                              {t("No performance data available")}
                             </TableCell>
                           </TableRow>
                         )}
@@ -277,7 +279,7 @@ const TechnicianPerformance = () => {
                   <Box display="flex" alignItems="center" mb={2}>
                     <StarIcon sx={{ color: theme.palette.warning.main, mr: 1 }} />
                     <Typography variant="h5" fontWeight="bold">
-                      Recent Reviews
+                      {t("Recent Reviews")}
                     </Typography>
                   </Box>
                   
@@ -285,22 +287,22 @@ const TechnicianPerformance = () => {
                     <Table stickyHeader size="small">
                       <TableHead>
                         <TableRow>
-                          <TableCell>Job No</TableCell>
-                          <TableCell>Technician</TableCell>
-                          <TableCell align="center">Time</TableCell>
-                          <TableCell align="center">Manner</TableCell>
-                          <TableCell align="center">Knowledge</TableCell>
-                          <TableCell align="center">Overall</TableCell>
-                          <TableCell align="center">Recommend</TableCell>
-                          <TableCell>Comment</TableCell>
-                          <TableCell>Date</TableCell>
+                          <TableCell>{t("Job No")}</TableCell>
+                          <TableCell>{t("Technician")}</TableCell>
+                          <TableCell align="center">{t("Time")}</TableCell>
+                          <TableCell align="center">{t("Manner")}</TableCell>
+                          <TableCell align="center">{t("Knowledge")}</TableCell>
+                          <TableCell align="center">{t("Overall")}</TableCell>
+                          <TableCell align="center">{t("Recommend")}</TableCell>
+                          <TableCell>{t("Comment")}</TableCell>
+                          <TableCell>{t("Date")}</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {performanceData?.recentReviews?.length > 0 ? (
                           performanceData.recentReviews.map((review) => (
                             <TableRow key={review._id}>
-                              <TableCell>{review.jobNo || 'N/A'}</TableCell>
+                              <TableCell>{review.jobNo || t('N/A')}</TableCell>
                               <TableCell>{review.technicianName}</TableCell>
                               <TableCell align="center">{review.time}</TableCell>
                               <TableCell align="center">{review.manner}</TableCell>
@@ -323,7 +325,7 @@ const TechnicianPerformance = () => {
                                     {review.comment}
                                   </Typography>
                                 ) : (
-                                  <Typography variant="body2" color="text.secondary">No comment</Typography>
+                                  <Typography variant="body2" color="text.secondary">{t("No comment")}</Typography>
                                 )}
                               </TableCell>
                               <TableCell>{formatDate(review.createdAt)}</TableCell>
@@ -332,7 +334,7 @@ const TechnicianPerformance = () => {
                         ) : (
                           <TableRow>
                             <TableCell colSpan={9} align="center">
-                              No recent reviews available
+                              {t("No recent reviews available")}
                             </TableCell>
                           </TableRow>
                         )}

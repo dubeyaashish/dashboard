@@ -1,7 +1,7 @@
-// src/context/FilterContext.js
+// src/context/FilterContext.js (updated to include technician filters)
 import React, { createContext, useState, useEffect, useContext } from 'react';
 
-// Initial filter values
+// Initial filter values (add technician fields)
 const initialFilters = {
   startDate: new Date(new Date().setDate(new Date().getDate() - 30)),
   endDate: new Date(),
@@ -10,6 +10,8 @@ const initialFilters = {
   priority: 'All',
   province: 'All',
   teamLeader: 'All',
+  technician: 'All', // Add technician filter
+  technicianId: null, // Add technician ID field
   page: 1,
   limit: 10
 };
@@ -28,7 +30,8 @@ export const FilterProvider = ({ children }) => {
     types: ['All'],
     priorities: ['All'],
     provinces: ['All'],
-    teamLeaders: ['All']
+    teamLeaders: ['All'],
+    technicians: ['All'] // Add technicians array
   });
   
   // Function to update filters
@@ -91,6 +94,10 @@ export const FilterProvider = ({ children }) => {
     
     if (data.teamLeaders && data.teamLeaders.length > 0) {
       newOptions.teamLeaders = ['All', ...data.teamLeaders];
+    }
+    
+    if (data.technicians && data.technicians.length > 0) {
+      newOptions.technicians = ['All', ...data.technicians];
     }
     
     setFilterOptions(newOptions);

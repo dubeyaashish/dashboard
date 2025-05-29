@@ -1,3 +1,4 @@
+// File: frontend/src/components/layout/Header.js
 import React from 'react';
 import { 
   AppBar, 
@@ -25,6 +26,8 @@ import {
   DarkMode as DarkModeIcon,
   Help as HelpIcon
 } from '@mui/icons-material';
+import LanguageSwitcher from './LanguageSwitcher'; // Import the language switcher
+import { useLanguage } from '../../context/LanguageContext'; // Import the useLanguage hook
 
 const Header = ({ toggleDrawer }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -32,6 +35,7 @@ const Header = ({ toggleDrawer }) => {
   const open = Boolean(anchorEl);
   const notificationsOpen = Boolean(notificationsAnchorEl);
   const theme = useTheme();
+  const { t } = useLanguage(); // Get the translate function
   
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -93,7 +97,7 @@ const Header = ({ toggleDrawer }) => {
             <SearchIcon />
           </Box>
           <InputBase
-            placeholder="Search jobs, customers, technicians..."
+            placeholder={t("Search jobs, customers, technicians...")}
             sx={{
               color: 'inherit',
               padding: theme.spacing(1, 1, 1, 0),
@@ -118,23 +122,26 @@ const Header = ({ toggleDrawer }) => {
             display: { xs: 'none', sm: 'block' }
           }}
         >
-          Job Management Dashboard
+          {t("Job Management Dashboard")}
         </Typography>
         
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Tooltip title="Help">
+          {/* Language Switcher */}
+          <LanguageSwitcher />
+          
+          <Tooltip title={t("Help")}>
             <IconButton color="inherit" sx={{ mx: 0.5 }}>
               <HelpIcon />
             </IconButton>
           </Tooltip>
           
-          <Tooltip title="Theme">
+          <Tooltip title={t("Theme")}>
             <IconButton color="inherit" sx={{ mx: 0.5 }}>
               <DarkModeIcon />
             </IconButton>
           </Tooltip>
           
-          <Tooltip title="Notifications">
+          <Tooltip title={t("Notifications")}>
             <IconButton 
               color="inherit" 
               onClick={handleNotificationsClick}
@@ -184,33 +191,33 @@ const Header = ({ toggleDrawer }) => {
             }}
           >
             <Box p={2}>
-              <Typography variant="subtitle1" fontWeight={600}>Recent Notifications</Typography>
+              <Typography variant="subtitle1" fontWeight={600}>{t("Recent Notifications")}</Typography>
             </Box>
             <MenuItem onClick={handleNotificationsClose}>
               <Box sx={{ width: '100%' }}>
-                <Typography variant="body2" fontWeight={500}>New job assigned (#JOB-1234)</Typography>
-                <Typography variant="caption" color="text.secondary">10 minutes ago</Typography>
+                <Typography variant="body2" fontWeight={500}>{t("New job assigned (#JOB-1234)")}</Typography>
+                <Typography variant="caption" color="text.secondary">{t("10 minutes ago")}</Typography>
               </Box>
             </MenuItem>
             <MenuItem onClick={handleNotificationsClose}>
               <Box sx={{ width: '100%' }}>
-                <Typography variant="body2" fontWeight={500}>Customer review received</Typography>
-                <Typography variant="caption" color="text.secondary">1 hour ago</Typography>
+                <Typography variant="body2" fontWeight={500}>{t("Customer review received")}</Typography>
+                <Typography variant="caption" color="text.secondary">{t("1 hour ago")}</Typography>
               </Box>
             </MenuItem>
             <MenuItem onClick={handleNotificationsClose}>
               <Box sx={{ width: '100%' }}>
-                <Typography variant="body2" fontWeight={500}>Job status update: Completed</Typography>
-                <Typography variant="caption" color="text.secondary">3 hours ago</Typography>
+                <Typography variant="body2" fontWeight={500}>{t("Job status update: Completed")}</Typography>
+                <Typography variant="caption" color="text.secondary">{t("3 hours ago")}</Typography>
               </Box>
             </MenuItem>
             <Box p={1.5} display="flex" justifyContent="center">
-              <Button size="small" color="primary">View all notifications</Button>
+              <Button size="small" color="primary">{t("View all notifications")}</Button>
             </Box>
           </Menu>
           
           <Box sx={{ ml: 1 }}>
-            <Tooltip title="Account settings">
+            <Tooltip title={t("Account settings")}>
               <IconButton
                 onClick={handleClick}
                 size="small"
@@ -264,21 +271,21 @@ const Header = ({ toggleDrawer }) => {
               }}
             >
               <Box p={2} sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
-                <Typography variant="subtitle2" fontWeight={600}>Admin User</Typography>
+                <Typography variant="subtitle2" fontWeight={600}>{t("Admin User")}</Typography>
                 <Typography variant="caption" color="text.secondary">admin@example.com</Typography>
               </Box>
               <MenuItem onClick={handleClose} sx={{ py: 1.5 }}>
                 <PersonIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.secondary }} />
-                Profile
+                {t("Profile")}
               </MenuItem>
               <MenuItem onClick={handleClose} sx={{ py: 1.5 }}>
                 <SettingsIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.secondary }} />
-                Settings
+                {t("Settings")}
               </MenuItem>
               <Box sx={{ borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`, mt: 1 }}>
                 <MenuItem onClick={handleClose} sx={{ py: 1.5 }}>
                   <LogoutIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.error.main }} />
-                  <Typography color="error">Logout</Typography>
+                  <Typography color="error">{t("Logout")}</Typography>
                 </MenuItem>
               </Box>
             </Menu>

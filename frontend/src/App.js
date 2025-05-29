@@ -1,9 +1,10 @@
-// File: frontend/src/App.js
+// File: frontend/src/App.js (Updated to include LanguageProvider)
 import React, { useState, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Box, CssBaseline, Toolbar } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { FilterProvider } from './context/FilterContext';
+import { LanguageProvider } from './context/LanguageContext'; // Import LanguageProvider
 
 // Layout components
 import Header from './components/layout/Header';
@@ -107,11 +108,11 @@ const App = () => {
             borderRadius: 8,
             boxShadow: 'none',
             '&:hover': {
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
             },
           },
           contained: {
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
           },
         },
       },
@@ -119,7 +120,7 @@ const App = () => {
         styleOverrides: {
           root: {
             borderRadius: 12,
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08)',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08)',
             background: 'linear-gradient(145deg, #1E293B 0%, #131f31 100%)',
           },
         },
@@ -148,7 +149,7 @@ const App = () => {
         styleOverrides: {
           root: {
             background: 'linear-gradient(90deg, #0F172A 0%, #1E293B 100%)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
           },
         },
       },
@@ -195,40 +196,43 @@ const App = () => {
 
   return (
     <ThemeProvider theme={theme}>
-      <FilterProvider>
-        <Router>
-          <Box sx={{ display: 'flex' }}>
-            <CssBaseline />
-            <Header toggleDrawer={toggleDrawer} />
-            <Sidebar open={drawerOpen} />
-            <Box
-              component="main"
-              sx={{
-                flexGrow: 1,
-                p: 0,
-                width: { sm: `calc(100% - ${drawerOpen ? 200 : 0}px)` },
-                ml: { sm: `${drawerOpen ? 100 : 0}px` },
-                transition: theme => theme.transitions.create(['margin', 'width'], {
-                  easing: theme.transitions.easing.sharp,
-                  duration: theme.transitions.duration.leavingScreen,
-                }),
-                pl: 0, // Completely remove left padding
-              }}
-            >
-              <Toolbar /> {/* For spacing below app bar */}
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/customers" element={<CustomerView />} />
-                <Route path="/technicians" element={<TechnicianPerformance />} />
-                <Route path="/map" element={<MapView />} />
-                <Route path="/analytics" element={<div>Analytics (Coming Soon)</div>} />
-                <Route path="/settings" element={<div>Settings (Coming Soon)</div>} />
-                <Route path="*" element={<div>Page Not Found</div>} />
-              </Routes>
+      {/* Wrap entire app in LanguageProvider */}
+      <LanguageProvider>
+        <FilterProvider>
+          <Router>
+            <Box sx={{ display: 'flex' }}>
+              <CssBaseline />
+              <Header toggleDrawer={toggleDrawer} />
+              <Sidebar open={drawerOpen} />
+              <Box
+                component="main"
+                sx={{
+                  flexGrow: 1,
+                  p: 0,
+                  width: { sm: `calc(100% - ${drawerOpen ? 200 : 0}px)` },
+                  ml: { sm: `${drawerOpen ? 100 : 0}px` },
+                  transition: theme => theme.transitions.create(['margin', 'width'], {
+                    easing: theme.transitions.easing.sharp,
+                    duration: theme.transitions.duration.leavingScreen,
+                  }),
+                  pl: 0, // Completely remove left padding
+                }}
+              >
+                <Toolbar /> {/* For spacing below app bar */}
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/customers" element={<CustomerView />} />
+                  <Route path="/technicians" element={<TechnicianPerformance />} />
+                  <Route path="/map" element={<MapView />} />
+                  <Route path="/analytics" element={<div>Analytics (Coming Soon)</div>} />
+                  <Route path="/settings" element={<div>Settings (Coming Soon)</div>} />
+                  <Route path="*" element={<div>Page Not Found</div>} />
+                </Routes>
+              </Box>
             </Box>
-          </Box>
-        </Router>
-      </FilterProvider>
+          </Router>
+        </FilterProvider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 };

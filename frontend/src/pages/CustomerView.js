@@ -1,4 +1,4 @@
-// File: frontend/src/pages/CustomerView.js
+// File: frontend/src/pages/CustomerView.js (with FilterBar added)
 import React, { useState, useEffect } from 'react';
 import { 
   Container, 
@@ -16,25 +16,29 @@ import { Home as HomeIcon, Person as PersonIcon } from '@mui/icons-material';
 import CustomerList from '../components/customer/CustomerList';
 import JobHistory from '../components/customer/JobHistory';
 import JobTimeline from '../components/customer/JobTimeline';
+import FilterBar from '../components/layout/FilterBar'; // Import FilterBar component
+import { useLanguage } from '../context/LanguageContext';
 
 const CustomerView = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [error, setError] = useState(null);
   const theme = useTheme();
+  const { t } = useLanguage(); // For translations
 
   // Function to get customer name safely
   const getCustomerDisplayName = (customer) => {
-    if (!customer) return 'No Customer Selected';
+    if (!customer) return t('No Customer Selected');
     
     // Try name field first
-    if (customer.name) return customer.name;
+    if (customer.locationName) return customer.locationName;
     
     // Fallback to code
-    if (customer.code) return `Customer Code: ${customer.code}`;
+    if (customer.name) return customer.name;
+    if (customer.code) return t('Customer Code') + ': ' + customer.code;
     
     // If both are missing, use ID or "Unknown Customer"
-    return customer._id ? `Customer ID: ${customer._id.toString().slice(-6)}` : 'Unknown Customer';
+    return customer._id ? t('Customer ID') + ': ' + customer._id.toString().slice(-6) : t('Unknown Customer');
   };
 
   const handleSelectCustomer = (customer) => {
@@ -42,12 +46,12 @@ const CustomerView = () => {
     
     // Validate customer object
     if (!customer || typeof customer !== 'object') {
-      setError("Invalid customer data selected");
+      setError(t("Invalid customer data selected"));
       return;
     }
     
     if (!customer._id) {
-      setError("Customer ID is missing");
+      setError(t("Customer ID is missing"));
       return;
     }
     
@@ -61,12 +65,12 @@ const CustomerView = () => {
     
     // Validate job object
     if (!job || typeof job !== 'object') {
-      setError("Invalid job data selected");
+      setError(t("Invalid job data selected"));
       return;
     }
     
     if (!job._id) {
-      setError("Job ID is missing");
+      setError(t("Job ID is missing"));
       return;
     }
     
@@ -98,11 +102,11 @@ const CustomerView = () => {
             sx={{ display: 'flex', alignItems: 'center' }}
           >
             <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            Dashboard
+            {t('Dashboard')}
           </Link>
           <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
             <PersonIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            Customer View
+            {t('Customer View')}
           </Typography>
         </Breadcrumbs>
         
@@ -116,7 +120,7 @@ const CustomerView = () => {
           }}
         >
           <Typography variant="h4" fontWeight="bold">
-            Customer Analysis
+            {t('Customer Analysis')}
           </Typography>
           
           {selectedCustomer && (
@@ -124,6 +128,11 @@ const CustomerView = () => {
               {getCustomerDisplayName(selectedCustomer)}
             </Typography>
           )}
+        </Box>
+        
+        {/* Add FilterBar component */}
+        <Box mt={3}>
+          <FilterBar />
         </Box>
       </Box>
       

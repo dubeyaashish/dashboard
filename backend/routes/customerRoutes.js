@@ -1,5 +1,6 @@
-// routes/customerRoutes.js
+// Completely rewritten routes/customerRoutes.js
 import express from 'express';
+import mongoose from 'mongoose';
 import Customer from '../models/Customer.js';
 import Job from '../models/Job.js';
 import JobLocation from '../models/JobLocation.js';
@@ -7,26 +8,74 @@ import CustomerReview from '../models/CustomerReview.js';
 
 const router = express.Router();
 
-// Get customer list
+// Get customer list with location names
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 20, search } = req.query;
     
-    const query = {};
+    // Build search query for aggregation
+    const searchMatch = {};
     if (search) {
-      query.$or = [
+      searchMatch.$or = [
         { name: { $regex: search, $options: 'i' } },
         { phone: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } }
       ];
     }
     
-    const customers = await Customer.find(query)
-      .sort({ name: 1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
+    // Use aggregation to join Customer with JobLocation to get real name
+    const aggregate = [
+      { $match: searchMatch },
+      {
+        $lookup: {
+          from: 'JobLocation',
+          localField: '_id',
+          foreignField: 'customerID',
+          as: 'locations'
+        }
+      },
+      {
+        $addFields: {
+          // Use the name from the first location if available
+          locationName: {
+            $cond: {
+              if: { $gt: [{ $size: '$locations' }, 0] },
+              then: { $arrayElemAt: ['$locations.name', 0] },
+              else: '$name'
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          code: 1,
+          name: 1,
+          phone: 1,
+          email: 1,
+          status: 1,
+          customerType: 1,
+          locationName: 1
+        }
+      },
+      { $sort: { name: 1 } },
+      { $skip: (page - 1) * limit },
+      { $limit: parseInt(limit) }
+    ];
     
-    const total = await Customer.countDocuments(query);
+    // Count pipeline for pagination
+    const countPipeline = [
+      { $match: searchMatch },
+      { $count: 'total' }
+    ];
+    
+    // Execute both pipelines in parallel
+    const [customers, countResult] = await Promise.all([
+      Customer.aggregate(aggregate),
+      Customer.aggregate(countPipeline)
+    ]);
+    
+    const total = countResult[0]?.total || 0;
     
     res.json({
       success: true,
@@ -46,46 +95,96 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get customer job history
+// COMPLETELY REWRITTEN: Get customer job history 
 router.get('/:id/jobs', async (req, res) => {
   try {
     const { id } = req.params;
     const { page = 1, limit = 10 } = req.query;
     
-    // Find all job locations for this customer
-    const locationPipeline = [
-      { $match: { customerID: id } },
-      { $project: { _id: 1 } }
-    ];
+    // Convert string ID to ObjectId
+    let customerObjectId;
+    try {
+      customerObjectId = new mongoose.Types.ObjectId(id);
+    } catch (error) {
+      console.error('Invalid customer ID format:', id);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid customer ID format',
+        data: { jobs: [], pagination: { total: 0, page: 1, limit: 10, pages: 0 } }
+      });
+    }
     
-    const locations = await JobLocation.aggregate(locationPipeline);
-    const locationIds = locations.map(loc => loc._id);
+    console.log('Getting jobs for customer ID:', customerObjectId);
     
-    // Find all jobs for these locations
+    // COMPLETELY NEW APPROACH: Single aggregation pipeline to go directly from Customer to Jobs
     const jobPipeline = [
-      { $match: { jobLocationID: { $in: locationIds } } },
-      { $sort: { createdAt: -1 } },
-      { $skip: (page - 1) * limit },
-      { $limit: parseInt(limit) },
+      // Start with the customer
+      { $match: { _id: customerObjectId } },
+      
+      // Look up locations for this customer
+      {
+        $lookup: {
+          from: 'JobLocation',
+          localField: '_id',
+          foreignField: 'customerID',
+          as: 'locations'
+        }
+      },
+      
+      // Unwind the locations array to get one document per location
+      { $unwind: '$locations' },
+      
+      // Look up jobs for each location
+      {
+        $lookup: {
+          from: 'Job',
+          localField: 'locations._id',
+          foreignField: 'jobLocationID',
+          as: 'jobs'
+        }
+      },
+      
+      // Unwind the jobs array to get one document per job
+      { $unwind: '$jobs' },
+      
+      // Group all jobs together to remove duplicates and prepare for pagination
+      {
+        $group: {
+          _id: '$jobs._id',
+          no: { $first: '$jobs.no' },
+          status: { $first: '$jobs.status' },
+          type: { $first: '$jobs.type' },
+          priority: { $first: '$jobs.priority' },
+          createdAt: { $first: '$jobs.createdAt' },
+          updatedAt: { $first: '$jobs.updatedAt' },
+          appointmentTime: { $first: '$jobs.appointmentTime' },
+          jobLocationID: { $first: '$jobs.jobLocationID' },
+          technicianProfileIDs: { $first: '$jobs.technicianProfileIDs' }
+        }
+      },
+      
+      // Look up location info
       {
         $lookup: {
           from: 'JobLocation',
           localField: 'jobLocationID',
           foreignField: '_id',
-          as: 'location',
-          pipeline: [{ $project: { name: 1, province: 1, district: 1 } }]
+          as: 'location'
         }
       },
       { $unwind: { path: '$location', preserveNullAndEmptyArrays: true } },
+      
+      // Look up technician info
       {
         $lookup: {
           from: 'TechnicianProfile',
           localField: 'technicianProfileIDs',
           foreignField: '_id',
-          as: 'technicians',
-          pipeline: [{ $project: { firstName: 1, lastName: 1 } }]
+          as: 'technicians'
         }
       },
+      
+      // Look up review info
       {
         $lookup: {
           from: 'CustomerReview',
@@ -95,6 +194,15 @@ router.get('/:id/jobs', async (req, res) => {
         }
       },
       { $unwind: { path: '$review', preserveNullAndEmptyArrays: true } },
+      
+      // Sort by creation date
+      { $sort: { createdAt: -1 } },
+      
+      // Skip and limit for pagination
+      { $skip: (page - 1) * parseInt(limit) },
+      { $limit: parseInt(limit) },
+      
+      // Project only the fields we need
       {
         $project: {
           _id: 1,
@@ -121,21 +229,58 @@ router.get('/:id/jobs', async (req, res) => {
       }
     ];
     
-    // Count total jobs
+    // A separate count pipeline
     const countPipeline = [
-      { $match: { jobLocationID: { $in: locationIds } } },
+      // Start with the customer
+      { $match: { _id: customerObjectId } },
+      
+      // Look up locations for this customer
+      {
+        $lookup: {
+          from: 'JobLocation',
+          localField: '_id',
+          foreignField: 'customerID',
+          as: 'locations'
+        }
+      },
+      
+      // Unwind the locations array
+      { $unwind: '$locations' },
+      
+      // Look up jobs for each location
+      {
+        $lookup: {
+          from: 'Job',
+          localField: 'locations._id',
+          foreignField: 'jobLocationID',
+          as: 'jobs'
+        }
+      },
+      
+      // Unwind the jobs array
+      { $unwind: '$jobs' },
+      
+      // Group by job ID to count unique jobs
+      {
+        $group: {
+          _id: '$jobs._id'
+        }
+      },
+      
+      // Count the total
       { $count: 'total' }
     ];
     
-    const [jobs, countResult] = await Promise.all([
-      Job.aggregate(jobPipeline),
-      Job.aggregate(countPipeline)
+    // Execute both pipelines in parallel
+    const [jobsResult, countResult] = await Promise.all([
+      Customer.aggregate(jobPipeline),
+      Customer.aggregate(countPipeline)
     ]);
     
-    const total = countResult[0]?.total || 0;
+    console.log(`Found ${jobsResult.length} jobs for customer ${id}`);
     
     // Process technician names
-    const processedJobs = jobs.map(job => {
+    const processedJobs = jobsResult.map(job => {
       const technicians = job.technicians || [];
       const technicianNames = technicians.map(tech => 
         `${tech.firstName || ''} ${tech.lastName || ''}`.trim()
@@ -147,6 +292,8 @@ router.get('/:id/jobs', async (req, res) => {
         technicianNames: technicianNames.join(', ') || 'N/A'
       };
     });
+    
+    const total = countResult[0]?.total || 0;
     
     res.json({
       success: true,
@@ -169,10 +316,22 @@ router.get('/:id/jobs', async (req, res) => {
 // Get job timeline and details
 router.get('/:customerId/jobs/:jobId', async (req, res) => {
   try {
-    const { jobId } = req.params;
+    const { customerId, jobId } = req.params;
+    
+    // Convert string ID to ObjectId
+    let jobObjectId;
+    try {
+      jobObjectId = new mongoose.Types.ObjectId(jobId);
+    } catch (error) {
+      console.error('Invalid job ID format:', jobId);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid job ID format'
+      });
+    }
     
     const pipeline = [
-      { $match: { _id: jobId } },
+      { $match: { _id: jobObjectId } },
       {
         $lookup: {
           from: 'JobLocation',
@@ -220,6 +379,7 @@ router.get('/:customerId/jobs/:jobId', async (req, res) => {
       }
     ];
     
+    console.log('Finding job details for:', jobObjectId);
     const job = await Job.aggregate(pipeline);
     
     if (!job || job.length === 0) {
