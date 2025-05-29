@@ -1,4 +1,4 @@
-// File: backend/routes/jobRoutes.js (Complete version with filter options)
+// File: backend/routes/jobRoutes.js (Updated with multi-select technician support)
 import express from 'express';
 import mongoose from 'mongoose';
 import Job from '../models/Job.js';
@@ -7,6 +7,41 @@ import TechnicianProfile from '../models/TechnicianProfile.js';
 import PrecomputedMetrics from '../models/PrecomputedMetrics.js';
 
 const router = express.Router();
+
+// Helper function to parse technician filter
+const parseTechnicianFilter = (req) => {
+  const { technicianIds, technicianId, technician } = req.query;
+  
+  // Handle multi-select technicians (comma-separated string)
+  if (technicianIds && technicianIds !== 'All') {
+    const ids = technicianIds.split(',').filter(id => id.trim() !== '');
+    return ids.map(id => {
+      try {
+        return new mongoose.Types.ObjectId(id.trim());
+      } catch (error) {
+        console.warn(`Invalid ObjectId: ${id}`);
+        return null;
+      }
+    }).filter(id => id !== null);
+  }
+  
+  // Handle single technician (backward compatibility)
+  if (technicianId && technicianId !== 'All') {
+    try {
+      return [new mongoose.Types.ObjectId(technicianId)];
+    } catch (error) {
+      console.warn(`Invalid ObjectId: ${technicianId}`);
+      return [];
+    }
+  }
+  
+  // Legacy technician name filtering (keep for compatibility)
+  if (technician && technician !== 'All') {
+    return technician; // Will be handled differently in aggregation
+  }
+  
+  return null;
+};
 
 // File: backend/routes/jobRoutes.js - Atlas SQL compatible version
 router.get('/filter-options', async (req, res) => {
@@ -82,30 +117,21 @@ router.get('/filter-options', async (req, res) => {
       
       // Try method 1: Find all active technicians
       try {
-        const techDocs = await TechnicianProfile.find({})
-        console.log('Method 1 - Active technicians found:', techDocs.length);
+        const techDocs = await TechnicianProfile.find({}).limit(100);
+        console.log('Method 1 - Technicians found:', techDocs.length);
         technicians = techDocs;
       } catch (e1) {
         console.log('Method 1 failed:', e1.message);
         
-        // Try method 2: Find all technicians without status filter  
+        // Try method 2: Use aggregation
         try {
-          const techDocs = await TechnicianProfile.find({}).limit(50);
-          console.log('Method 2 - All technicians found:', techDocs.length);
+          const techDocs = await TechnicianProfile.aggregate([
+            { $limit: 100 }
+          ]);
+          console.log('Method 2 - Aggregated technicians found:', techDocs.length);
           technicians = techDocs;
         } catch (e2) {
           console.log('Method 2 failed:', e2.message);
-          
-          // Try method 3: Use aggregation
-          try {
-            const techDocs = await TechnicianProfile.aggregate([
-              { $limit: 50 }
-            ]);
-            console.log('Method 3 - Aggregated technicians found:', techDocs.length);
-            technicians = techDocs;
-          } catch (e3) {
-            console.log('Method 3 failed:', e3.message);
-          }
         }
       }
 
@@ -162,7 +188,8 @@ router.get('/filter-options', async (req, res) => {
     });
   }
 });
-// Get job overview data with pagination
+
+// Get job overview data with pagination and multi-select technician support
 router.get('/overview', async (req, res) => {
   try {
     const { startDate, endDate, status, type, priority, province, teamLeader, page = 1, limit = 10 } = req.query;
@@ -170,6 +197,10 @@ router.get('/overview', async (req, res) => {
     // Convert string dates to Date objects
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate) : new Date();
+    
+    // Parse technician filter
+    const technicianFilter = parseTechnicianFilter(req);
+    console.log('Technician filter parsed:', technicianFilter);
     
     // If requesting today's metrics, use precomputed data if available
     const today = new Date();
@@ -200,7 +231,7 @@ router.get('/overview', async (req, res) => {
     if (type && type !== 'All') matchCriteria.type = type;
     if (priority && priority !== 'All') matchCriteria.priority = priority;
     
-    // Advanced pipeline for province and team leader filtering
+    // Advanced pipeline for province and technician filtering
     const pipeline = [
       { $match: matchCriteria },
       {
@@ -222,34 +253,48 @@ router.get('/overview', async (req, res) => {
       });
     }
     
-    // Add technician lookup if needed for team leader filtering
-    if (teamLeader && teamLeader !== 'All') {
-      pipeline.push(
-        {
-          $lookup: {
-            from: 'TechnicianProfile',
-            localField: 'technicianProfileIDs',
-            foreignField: '_id',
-            as: 'technicians'
+    // Add technician lookup and filtering
+    pipeline.push({
+      $lookup: {
+        from: 'TechnicianProfile',
+        localField: 'technicianProfileIDs',
+        foreignField: '_id',
+        as: 'technicians'
+      }
+    });
+    
+    // Add technician filter based on parsed filter
+    if (technicianFilter) {
+      if (Array.isArray(technicianFilter)) {
+        // Multi-select technician filter
+        pipeline.push({
+          $match: {
+            technicianProfileIDs: { $in: technicianFilter }
           }
-        },
-        {
+        });
+        console.log('Applied multi-select technician filter:', technicianFilter.length, 'technicians');
+      } else if (typeof technicianFilter === 'string') {
+        // Legacy name-based filter
+        pipeline.push({
           $match: {
             $or: [
-              { 'technicians.firstName': { $regex: teamLeader.split(' ')[0], $options: 'i' } },
-              { 'technicians.lastName': { $regex: teamLeader.split(' ').slice(1).join(' '), $options: 'i' } }
+              { 'technicians.firstName': { $regex: technicianFilter.split(' ')[0], $options: 'i' } },
+              { 'technicians.lastName': { $regex: technicianFilter.split(' ').slice(1).join(' '), $options: 'i' } }
             ]
           }
-        }
-      );
-    } else {
-      // Always lookup technicians for name display
+        });
+        console.log('Applied legacy name-based technician filter:', technicianFilter);
+      }
+    }
+    
+    // Add team leader filtering if needed
+    if (teamLeader && teamLeader !== 'All') {
       pipeline.push({
-        $lookup: {
-          from: 'TechnicianProfile',
-          localField: 'technicianProfileIDs',
-          foreignField: '_id',
-          as: 'technicians'
+        $match: {
+          $or: [
+            { 'technicians.firstName': { $regex: teamLeader.split(' ')[0], $options: 'i' } },
+            { 'technicians.lastName': { $regex: teamLeader.split(' ').slice(1).join(' '), $options: 'i' } }
+          ]
         }
       });
     }
@@ -412,7 +457,7 @@ router.get('/overview', async (req, res) => {
   }
 });
 
-// Get job map data
+// Get job map data with multi-select technician support
 router.get('/map-data', async (req, res) => {
   try {
     const { startDate, endDate, status, type, priority, province } = req.query;
@@ -420,6 +465,10 @@ router.get('/map-data', async (req, res) => {
     // Convert string dates to Date objects
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate) : new Date();
+    
+    // Parse technician filter
+    const technicianFilter = parseTechnicianFilter(req);
+    console.log('Map data technician filter:', technicianFilter);
     
     // Build the query for filtering
     const matchCriteria = {
@@ -483,6 +532,16 @@ router.get('/map-data', async (req, res) => {
       });
     }
     
+    // Add technician filter if specified
+    if (technicianFilter && Array.isArray(technicianFilter)) {
+      pipeline.push({
+        $match: {
+          technicianProfileIDs: { $in: technicianFilter }
+        }
+      });
+      console.log('Applied technician filter to map data:', technicianFilter.length, 'technicians');
+    }
+    
     // Project only the fields needed for the map
     pipeline.push({
       $project: {
@@ -544,6 +603,8 @@ router.get('/map-data', async (req, res) => {
       };
     }).filter(job => job.lon !== null && job.lat !== null);
     
+    console.log(`Returning ${processedData.length} map jobs after technician filtering`);
+    
     res.json({
       success: true,
       data: processedData
@@ -554,9 +615,7 @@ router.get('/map-data', async (req, res) => {
   }
 });
 
-
-// Add this debug route to your backend/routes/jobRoutes.js to check what types exist
-
+// Debug route to check types
 router.get('/debug-types', async (req, res) => {
   try {
     console.log('=== DEBUGGING JOB TYPES ===');

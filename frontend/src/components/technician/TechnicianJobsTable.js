@@ -192,7 +192,7 @@ const TechnicianJobsTable = ({ filters }) => {
         type: filters.type,
         priority: filters.priority,
         page: 1,
-        limit: 10000 // Get all jobs
+        limit: 200000 // Get all jobs
       });
       
       if (response.success && response.data.jobs) {

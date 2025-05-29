@@ -1,4 +1,4 @@
-// File: frontend/src/pages/Dashboard.js (Fixed spacing and layout issues)
+// File: frontend/src/pages/Dashboard.js (FIXED - Add map data loading)
 import React, { useState, useEffect } from 'react';
 import { 
   Container, 
@@ -24,21 +24,25 @@ import {
   Person as PersonIcon,
   Engineering as EngineeringIcon,
   MoreVert as MoreVertIcon,
-  TrendingUp as TrendingUpIcon
+  TrendingUp as TrendingUpIcon,
+  Map as MapIcon
 } from '@mui/icons-material';
 import { useFilters } from '../context/FilterContext';
-import { getJobOverview } from '../services/api';
+import { getJobOverview, getMapData } from '../services/api';
 import FilterBar from '../components/layout/FilterBar';
-import MetricCard from '../components/dashboard/metricCard';
+import MetricCard from '../components/dashboard/MetricCard';
 import StatusPieChart from '../components/dashboard/StatusPieChart';
 import BarChart from '../components/dashboard/BarChart';
 import DataTable from '../components/dashboard/DataTable';
+import JobMap from '../components/dashboard/JobMap';
 
 const Dashboard = () => {
   const { filters, updateFilters } = useFilters();
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
+  const [mapData, setMapData] = useState([]); // Add map data state
+  const [mapLoading, setMapLoading] = useState(false); // Add map loading state
   const theme = useTheme();
   
   // Fetch dashboard overview data
@@ -62,6 +66,34 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [filters]);
   
+  // ADDED: Fetch map data separately when needed
+  useEffect(() => {
+    const fetchMapData = async () => {
+      setMapLoading(true);
+      try {
+        console.log('📍 Dashboard: Fetching map data...');
+        const response = await getMapData(filters);
+        if (response.success) {
+          console.log('✅ Dashboard: Map data received:', response.data.length, 'jobs');
+          setMapData(response.data);
+        } else {
+          console.error('❌ Dashboard: Map data failed:', response);
+          setMapData([]);
+        }
+      } catch (error) {
+        console.error('❌ Dashboard: Error fetching map data:', error);
+        setMapData([]);
+      } finally {
+        setMapLoading(false);
+      }
+    };
+    
+    // Only fetch map data when we're not loading main dashboard data
+    if (!loading) {
+      fetchMapData();
+    }
+  }, [filters, loading]);
+  
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
@@ -78,22 +110,20 @@ const Dashboard = () => {
   ];
   
   return (
-    // FIXED: Remove top margin and use proper container
     <Container 
       maxWidth="xl" 
       sx={{ 
-        py: 2, // Reduced padding
+        py: 2,
         px: { xs: 2, sm: 2, md: 3 },
-        // FIXED: Ensure content doesn't get hidden
         position: 'relative',
         zIndex: 1,
       }}
     >
       <Fade in={true} timeout={800}>
         <Box>
-          {/* FIXED: Header section with reduced margin */}
+          {/* Header section */}
           <Box 
-            mb={3} // Reduced from mb={4}
+            mb={3}
             sx={{ 
               background: `linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.background.default, 0)} 100%)`,
               p: 3,
@@ -114,8 +144,8 @@ const Dashboard = () => {
             <FilterBar />
           </Box>
           
-          {/* FIXED: Metric Cards with reduced margin */}
-          <Grid container spacing={3} mb={3}> {/* Reduced from mb={4} */}
+          {/* Metric Cards */}
+          <Grid container spacing={3} mb={3}>
             <Grid item xs={12} sm={6} md={3}>
               <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '100ms' : '0ms' }}>
                 <Box>
@@ -168,12 +198,12 @@ const Dashboard = () => {
             </Grid>
           </Grid>
           
-          {/* FIXED: Tabs section with better spacing */}
+          {/* Tabs section */}
           <Box 
             sx={{ 
               borderBottom: 1, 
               borderColor: alpha(theme.palette.divider, 0.1), 
-              mb: 2, // Reduced from mb={3}
+              mb: 2,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -199,6 +229,17 @@ const Dashboard = () => {
                 label="Overview" 
                 icon={<DashboardIcon />} 
                 iconPosition="start" 
+                sx={{ 
+                  minHeight: 64,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '1rem'
+                }}
+              />
+              <Tab 
+                label="Map View" 
+                icon={<MapIcon />} 
+                iconPosition="start"
                 sx={{ 
                   minHeight: 64,
                   textTransform: 'none',
@@ -245,7 +286,7 @@ const Dashboard = () => {
             </Box>
           </Box>
           
-          {/* FIXED: Tab content with proper spacing */}
+          {/* Tab content */}
           <Box
             sx={{
               backgroundColor: alpha(theme.palette.background.paper, 0.2),
@@ -258,7 +299,7 @@ const Dashboard = () => {
             {tabValue === 0 && (
               <>
                 {/* Status and Priority charts */}
-                <Grid container spacing={4} mb={4}> {/* Reduced from mb={5} */}
+                <Grid container spacing={4} mb={4}>
                   <Grid item xs={12} md={6}>
                     <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '150ms' : '0ms' }}>
                       <Box sx={{ height: 500, width: '100%' }}>
@@ -287,7 +328,7 @@ const Dashboard = () => {
                 </Grid>
                 
                 {/* Province and District charts */}
-                <Grid container spacing={4} mb={4}> {/* Reduced from mb={5} */}
+                <Grid container spacing={4} mb={4}>
                   <Grid item xs={12} md={6}>
                     <Fade in={!loading} timeout={{ enter: 1000 }} style={{ transitionDelay: !loading ? '450ms' : '0ms' }}>
                       <Box sx={{ height: 550, width: '100%' }}>
@@ -323,7 +364,7 @@ const Dashboard = () => {
                 
                 <Divider 
                   sx={{ 
-                    my: 3, // Reduced from my: 4
+                    my: 3,
                     opacity: 0.2,
                     '&::before, &::after': {
                       borderColor: alpha(theme.palette.divider, 0.2),
@@ -359,8 +400,82 @@ const Dashboard = () => {
               </>
             )}
             
-            {/* Customer Tab */}
+            {/* ADDED: Map View Tab */}
             {tabValue === 1 && (
+              <>
+                <Box mb={3}>
+                  <Typography variant="h5" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <MapIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
+                    Job Distribution Map
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Geographical distribution of {mapData.length} jobs in the selected period.
+                    {mapData.length === 0 && !mapLoading && (
+                      <span style={{ color: theme.palette.warning.main }}>
+                        {' '}No jobs found with valid coordinates for the current filters.
+                      </span>
+                    )}
+                  </Typography>
+                </Box>
+                
+                {/* FIXED: Map with proper data */}
+                <Box sx={{ height: 600, mb: 4 }}>
+                  <JobMap 
+                    data={mapData} 
+                    title="" 
+                    loading={mapLoading}
+                  />
+                </Box>
+                
+                {/* Map Statistics */}
+                {!mapLoading && mapData.length > 0 && (
+                  <Grid container spacing={3} mb={4}>
+                    <Grid item xs={12} md={4}>
+                      <Card sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="h4" color="primary" fontWeight="bold">
+                          {mapData.length}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Jobs with Location Data
+                        </Typography>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <Card sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="h4" color="success.main" fontWeight="bold">
+                          {new Set(mapData.map(job => job.location?.province)).size}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Provinces Covered
+                        </Typography>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <Card sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="h4" color="warning.main" fontWeight="bold">
+                          {new Set(mapData.map(job => job.technicianNames)).size}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Unique Technician Teams
+                        </Typography>
+                      </Card>
+                    </Grid>
+                  </Grid>
+                )}
+                
+                {/* Debug info for development */}
+                {process.env.NODE_ENV === 'development' && (
+                  <Box sx={{ p: 2, bgcolor: alpha(theme.palette.info.main, 0.1), borderRadius: 1, mb: 2 }}>
+                    <Typography variant="caption">
+                      Debug: Map data: {mapData.length} jobs, Loading: {mapLoading.toString()}
+                    </Typography>
+                  </Box>
+                )}
+              </>
+            )}
+            
+            {/* Customer Tab */}
+            {tabValue === 2 && (
               <Box 
                 sx={{ 
                   p: 6, 
@@ -402,7 +517,7 @@ const Dashboard = () => {
             )}
             
             {/* Technician Performance Tab */}
-            {tabValue === 2 && (
+            {tabValue === 3 && (
               <Box 
                 sx={{ 
                   p: 6, 

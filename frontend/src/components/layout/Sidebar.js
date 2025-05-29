@@ -95,7 +95,7 @@ const Sidebar = ({ open }) => {
               fontWeight: 700
             }}
           >
-            JobFlow
+            ศรช
           </Typography>
         </Box>
       </Toolbar>

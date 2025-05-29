@@ -1,8 +1,8 @@
-// File: frontend/src/context/FilterContext.js (COMPLETE FILE)
+// File: frontend/src/context/FilterContext.js (FIXED - Maintains existing functionality)
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { getFilterOptions } from '../services/api';
 
-// Initial filter values - WITH MULTI-SELECT TECHNICIANS
+// Initial filter values - KEEP EXISTING STRUCTURE
 const initialFilters = {
   startDate: new Date(new Date().setDate(new Date().getDate() - 30)),
   endDate: new Date(),
@@ -68,10 +68,50 @@ export const FilterProvider = ({ children }) => {
     loadFilterOptions();
   }, []);
   
-  // Function to update filters
+  // Function to update filters - FIXED to maintain consistency
   const updateFilters = (newFilters) => {
-    console.log('Updating filters:', newFilters);
-    setFilters(prev => ({ ...prev, ...newFilters }));
+    console.log('Updating filters with:', newFilters);
+    
+    setFilters(prev => {
+      const updated = { ...prev, ...newFilters };
+      
+      // IMPORTANT: Maintain consistency between single and multi-select technician filters
+      if (newFilters.hasOwnProperty('technicianIds')) {
+        if (Array.isArray(newFilters.technicianIds) && newFilters.technicianIds.length > 0) {
+          // Multi-select: Set first technician as single selection for backward compatibility
+          updated.technicianId = newFilters.technicianIds[0];
+          updated.technician = newFilters.technician || 'Selected';
+        } else {
+          // No selection: Clear both
+          updated.technicianId = null;
+          updated.technician = 'All';
+          updated.technicianIds = [];
+        }
+      }
+      
+      // Handle single technician selection (backward compatibility)
+      if (newFilters.hasOwnProperty('technicianId')) {
+        if (newFilters.technicianId && newFilters.technicianId !== 'All') {
+          updated.technicianIds = [newFilters.technicianId];
+          updated.technician = newFilters.technician || 'Selected';
+        } else {
+          updated.technicianIds = [];
+          updated.technician = 'All';
+          updated.technicianId = null;
+        }
+      }
+      
+      // Handle legacy technician field
+      if (newFilters.hasOwnProperty('technician')) {
+        if (newFilters.technician === 'All') {
+          updated.technicianId = null;
+          updated.technicianIds = [];
+        }
+      }
+      
+      console.log('Updated filters:', updated);
+      return updated;
+    });
   };
   
   // Function to reset filters to default

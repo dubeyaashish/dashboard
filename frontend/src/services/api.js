@@ -1,4 +1,4 @@
-// File: frontend/src/services/api.js (Complete fixed version)
+// File: frontend/src/services/api.js (Complete version with multi-select technician support)
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -10,6 +10,42 @@ const api = axios.create({
   },
 });
 
+// Helper function to build query parameters with multi-select technician support
+const buildFilterParams = (filters) => {
+  const params = new URLSearchParams();
+  
+  // Basic filters
+  if (filters.startDate) params.append('startDate', filters.startDate.toISOString());
+  if (filters.endDate) params.append('endDate', filters.endDate.toISOString());
+  if (filters.status && filters.status !== 'All') params.append('status', filters.status);
+  if (filters.type && filters.type !== 'All') params.append('type', filters.type);
+  if (filters.priority && filters.priority !== 'All') params.append('priority', filters.priority);
+  if (filters.province && filters.province !== 'All') params.append('province', filters.province);
+  if (filters.teamLeader && filters.teamLeader !== 'All') params.append('teamLeader', filters.teamLeader);
+  
+  // FIXED: Handle technician filtering properly
+  if (filters.technicianIds && Array.isArray(filters.technicianIds) && filters.technicianIds.length > 0) {
+    // Multi-select: Send as comma-separated string
+    params.append('technicianIds', filters.technicianIds.join(','));
+    console.log('API: Using multi-select technicians:', filters.technicianIds);
+  } else if (filters.technicianId && filters.technicianId !== 'All' && filters.technicianId !== null) {
+    // Single select: Backward compatibility
+    params.append('technicianId', filters.technicianId);
+    console.log('API: Using single technician:', filters.technicianId);
+  } else if (filters.technician && filters.technician !== 'All' && filters.technician !== 'Selected') {
+    // Legacy name-based filtering
+    params.append('technician', filters.technician);
+    console.log('API: Using legacy technician filter:', filters.technician);
+  }
+  
+  // Pagination
+  if (filters.page) params.append('page', filters.page);
+  if (filters.limit) params.append('limit', filters.limit);
+  
+  console.log('API: Built filter params:', params.toString());
+  return params;
+};
+
 // Get filter options from backend
 export const getFilterOptions = async () => {
   try {
@@ -18,6 +54,7 @@ export const getFilterOptions = async () => {
     
     if (response.data && response.data.success) {
       console.log('Filter options received:', response.data.data);
+      console.log('Technicians count:', response.data.data.technicians?.length || 0);
       return response.data;
     } else {
       console.error('Failed to fetch filter options:', response.data);
@@ -51,23 +88,12 @@ export const getFilterOptions = async () => {
   }
 };
 
-// Job API calls
+// Job API calls with multi-select technician support
 export const getJobOverview = async (filters) => {
-  const params = new URLSearchParams();
-  
-  if (filters.startDate) params.append('startDate', filters.startDate.toISOString());
-  if (filters.endDate) params.append('endDate', filters.endDate.toISOString());
-  if (filters.status && filters.status !== 'All') params.append('status', filters.status);
-  if (filters.type && filters.type !== 'All') params.append('type', filters.type);
-  if (filters.priority && filters.priority !== 'All') params.append('priority', filters.priority);
-  if (filters.province && filters.province !== 'All') params.append('province', filters.province);
-  if (filters.teamLeader && filters.teamLeader !== 'All') params.append('teamLeader', filters.teamLeader);
-  if (filters.technician && filters.technician !== 'All') params.append('technician', filters.technician);
-  if (filters.technicianId) params.append('technicianId', filters.technicianId);
-  if (filters.page) params.append('page', filters.page);
-  if (filters.limit) params.append('limit', filters.limit);
+  const params = buildFilterParams(filters);
   
   try {
+    console.log('Fetching job overview with params:', params.toString());
     const response = await api.get(`/jobs/overview?${params.toString()}`);
     return response.data;
   } catch (error) {
@@ -77,18 +103,10 @@ export const getJobOverview = async (filters) => {
 };
 
 export const getMapData = async (filters) => {
-  const params = new URLSearchParams();
-  
-  if (filters.startDate) params.append('startDate', filters.startDate.toISOString());
-  if (filters.endDate) params.append('endDate', filters.endDate.toISOString());
-  if (filters.status && filters.status !== 'All') params.append('status', filters.status);
-  if (filters.type && filters.type !== 'All') params.append('type', filters.type);
-  if (filters.priority && filters.priority !== 'All') params.append('priority', filters.priority);
-  if (filters.province && filters.province !== 'All') params.append('province', filters.province);
-  if (filters.technician && filters.technician !== 'All') params.append('technician', filters.technician);
-  if (filters.technicianId) params.append('technicianId', filters.technicianId);
+  const params = buildFilterParams(filters);
   
   try {
+    console.log('Fetching map data with params:', params.toString());
     const response = await api.get(`/jobs/map-data?${params.toString()}`);
     return response.data;
   } catch (error) {
@@ -261,15 +279,12 @@ export const getJobDetails = async (customerId, jobId) => {
   }
 };
 
-// Analytics API calls
+// Analytics API calls with multi-select technician support
 export const getTechnicianPerformance = async (params = {}) => {
-  const queryParams = new URLSearchParams();
-  
-  if (params.startDate) queryParams.append('startDate', params.startDate.toISOString());
-  if (params.endDate) queryParams.append('endDate', params.endDate.toISOString());
-  if (params.technicianId) queryParams.append('technicianId', params.technicianId);
+  const queryParams = buildFilterParams(params);
   
   try {
+    console.log('Fetching technician performance with params:', queryParams.toString());
     const response = await api.get(`/analytics/technician-performance?${queryParams.toString()}`);
     return response.data;
   } catch (error) {
@@ -279,13 +294,10 @@ export const getTechnicianPerformance = async (params = {}) => {
 };
 
 export const getGeographicAnalytics = async (params = {}) => {
-  const queryParams = new URLSearchParams();
-  
-  if (params.startDate) queryParams.append('startDate', params.startDate.toISOString());
-  if (params.endDate) queryParams.append('endDate', params.endDate.toISOString());
-  if (params.technicianId) queryParams.append('technicianId', params.technicianId);
+  const queryParams = buildFilterParams(params);
   
   try {
+    console.log('Fetching geographic analytics with params:', queryParams.toString());
     const response = await api.get(`/analytics/geographic?${queryParams.toString()}`);
     return response.data;
   } catch (error) {
@@ -294,18 +306,9 @@ export const getGeographicAnalytics = async (params = {}) => {
   }
 };
 
-// Technician Jobs API call
+// Technician Jobs API call with multi-select support
 export const getTechnicianJobs = async (params = {}) => {
-  const queryParams = new URLSearchParams();
-  
-  if (params.startDate) queryParams.append('startDate', params.startDate.toISOString());
-  if (params.endDate) queryParams.append('endDate', params.endDate.toISOString());
-  if (params.technicianId && params.technicianId !== 'All') queryParams.append('technicianId', params.technicianId);
-  if (params.status && params.status !== 'All') queryParams.append('status', params.status);
-  if (params.type && params.type !== 'All') queryParams.append('type', params.type);
-  if (params.priority && params.priority !== 'All') queryParams.append('priority', params.priority);
-  if (params.page) queryParams.append('page', params.page);
-  if (params.limit) queryParams.append('limit', params.limit);
+  const queryParams = buildFilterParams(params);
   
   try {
     console.log(`Fetching technician jobs with params: ${queryParams.toString()}`);

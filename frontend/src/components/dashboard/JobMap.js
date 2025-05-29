@@ -1,4 +1,4 @@
-// File: frontend/src/components/dashboard/JobMap.js (FIXED VERSION)
+// File: frontend/src/components/dashboard/JobMap.js (FIXED - Proper initialization)
 import React, { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, Typography, Box, CircularProgress, alpha, useTheme } from '@mui/material';
 
@@ -8,16 +8,41 @@ const JobMap = ({ data, title, loading }) => {
   const markersLayer = useRef(null);
   const [mapInitialized, setMapInitialized] = useState(false);
   const [leafletLoaded, setLeafletLoaded] = useState(false);
+  const [initError, setInitError] = useState(null);
   const theme = useTheme();
 
-  // Load Leaflet dynamically
+  // FIXED: Load Leaflet more reliably
   useEffect(() => {
     const loadLeaflet = async () => {
       try {
+        console.log('🗺️ Loading Leaflet...');
+        
         // Check if Leaflet is already loaded
         if (window.L) {
+          console.log('✅ Leaflet already available');
           setLeafletLoaded(true);
           return;
+        }
+
+        // Load Leaflet CSS first
+        if (!document.querySelector('link[href*="leaflet.css"]')) {
+          const cssLink = document.createElement('link');
+          cssLink.rel = 'stylesheet';
+          cssLink.href = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
+          document.head.appendChild(cssLink);
+        }
+
+        // Load marker cluster CSS
+        if (!document.querySelector('link[href*="MarkerCluster.css"]')) {
+          const clusterCss = document.createElement('link');
+          clusterCss.rel = 'stylesheet';
+          clusterCss.href = 'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css';
+          document.head.appendChild(clusterCss);
+          
+          const clusterDefaultCss = document.createElement('link');
+          clusterDefaultCss.rel = 'stylesheet';
+          clusterDefaultCss.href = 'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css';
+          document.head.appendChild(clusterDefaultCss);
         }
 
         // Dynamically import Leaflet
@@ -26,7 +51,7 @@ const JobMap = ({ data, title, loading }) => {
         // Import marker cluster
         await import('leaflet.markercluster');
         
-        // Set default icon paths (IMPORTANT FIX)
+        // IMPORTANT: Fix default icon paths
         delete L.Icon.Default.prototype._getIconUrl;
         L.Icon.Default.mergeOptions({
           iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -37,29 +62,46 @@ const JobMap = ({ data, title, loading }) => {
         // Make L available globally
         window.L = L;
         setLeafletLoaded(true);
-        console.log("Leaflet loaded successfully");
+        console.log('✅ Leaflet loaded successfully');
       } catch (error) {
-        console.error("Error loading Leaflet:", error);
+        console.error('❌ Error loading Leaflet:', error);
+        setInitError(`Failed to load Leaflet: ${error.message}`);
       }
     };
 
     loadLeaflet();
   }, []);
 
-  // Initialize map
+  // FIXED: Initialize map when both Leaflet is loaded and container is ready
   useEffect(() => {
-    if (!leafletLoaded || !mapRef.current || mapInitialized) return;
+    if (!leafletLoaded || !mapRef.current || mapInitialized) {
+      console.log('⏳ Map init conditions not met:', {
+        leafletLoaded,
+        hasContainer: !!mapRef.current,
+        mapInitialized
+      });
+      return;
+    }
 
-    const initializeMap = async () => {
+    const initializeMap = () => {
       try {
+        console.log('🗺️ Initializing map...');
         const L = window.L;
+        
+        // Clear any existing map
+        if (leafletMap.current) {
+          leafletMap.current.remove();
+          leafletMap.current = null;
+          markersLayer.current = null;
+        }
         
         // Initialize the map
         leafletMap.current = L.map(mapRef.current, {
           center: [13.7563, 100.5018], // Bangkok coordinates
           zoom: 6,
           zoomControl: true,
-          scrollWheelZoom: true
+          scrollWheelZoom: true,
+          attributionControl: true
         });
         
         // Add tile layer
@@ -79,18 +121,22 @@ const JobMap = ({ data, title, loading }) => {
         
         leafletMap.current.addLayer(markersLayer.current);
         
-        console.log("Map initialized successfully");
+        console.log('✅ Map initialized successfully');
         setMapInitialized(true);
+        setInitError(null);
       } catch (error) {
-        console.error("Error initializing map:", error);
+        console.error('❌ Error initializing map:', error);
+        setInitError(`Failed to initialize map: ${error.message}`);
       }
     };
     
-    initializeMap();
+    // Small delay to ensure DOM is ready
+    setTimeout(initializeMap, 100);
     
     // Cleanup function
     return () => {
       if (leafletMap.current) {
+        console.log('🧹 Cleaning up map');
         leafletMap.current.remove();
         leafletMap.current = null;
         markersLayer.current = null;
@@ -99,12 +145,25 @@ const JobMap = ({ data, title, loading }) => {
     };
   }, [leafletLoaded, mapInitialized]);
   
-  // Update markers when data changes
+  // FIXED: Update markers when data changes
   useEffect(() => {
-    if (!mapInitialized || !markersLayer.current || !data || loading || !window.L) return;
+    console.log('🔄 Map update triggered:', {
+      mapInitialized,
+      hasMarkersLayer: !!markersLayer.current,
+      hasData: !!data,
+      dataLength: data?.length,
+      loading,
+      hasLeaflet: !!window.L
+    });
+
+    if (!mapInitialized || !markersLayer.current || !data || loading || !window.L) {
+      console.log('❌ Map update skipped - conditions not met');
+      return;
+    }
     
     const updateMarkers = () => {
       try {
+        console.log(`🗺️ Processing ${data.length} jobs for map markers`);
         const L = window.L;
         
         // Clear existing markers
@@ -112,22 +171,25 @@ const JobMap = ({ data, title, loading }) => {
         
         // Status colors for markers
         const statusColors = {
-          'WAITINGJOB': '#FFA500', // orange
-          'WORKING': '#1E90FF',    // blue  
-          'PENDING': '#FFD700',    // yellow
-          'COMPLETED': '#32CD32',  // green
-          'CLOSED': '#006400',     // dark green
-          'CANCELLED': '#DC143C',  // crimson
-          'REVIEW': '#9932CC'      // purple
+          'WAITINGJOB': '#FFA500',
+          'WORKING': '#1E90FF',
+          'PENDING': '#FFD700',
+          'COMPLETED': '#32CD32',
+          'CLOSED': '#006400',
+          'CANCELLED': '#DC143C',
+          'REVIEW': '#9932CC'
         };
         
-        console.log(`Processing ${data.length} jobs for map markers`);
-        
         let validMarkers = 0;
+        let invalidCoordinates = 0;
         const bounds = L.latLngBounds();
         
         // Add markers for each job
         data.forEach((job, index) => {
+          if (index % 1000 === 0) {
+            console.log(`Processing job ${index + 1}/${data.length}...`);
+          }
+          
           // Extract coordinates
           let lat = null, lon = null;
           
@@ -141,6 +203,9 @@ const JobMap = ({ data, title, loading }) => {
           } else if (job.lon && job.lat) {
             lon = job.lon;
             lat = job.lat;
+          } else {
+            invalidCoordinates++;
+            return;
           }
           
           // Validate coordinates
@@ -148,33 +213,35 @@ const JobMap = ({ data, title, loading }) => {
           const lonNum = parseFloat(lon);
           
           if (isNaN(latNum) || isNaN(lonNum) || latNum === 0 || lonNum === 0) {
-            console.log(`Invalid coordinates for job ${job.jobNo || index}: lat=${lat}, lon=${lon}`);
+            invalidCoordinates++;
             return;
+          }
+          
+          // Basic Thailand bounds check (optional)
+          if (latNum < 5 || latNum > 21 || lonNum < 97 || lonNum > 106) {
+            // Still add it, but log as potentially outside Thailand
+            if (validMarkers < 5) {
+              console.log(`⚠️ Job ${job.jobNo} coordinates outside Thailand bounds: [${lonNum}, ${latNum}]`);
+            }
           }
           
           // Create marker
           const color = statusColors[job.status] || '#3388ff';
           
-          // Create custom marker icon
+          // Create simple marker icon
           const markerIcon = L.divIcon({
             className: 'custom-marker',
             html: `<div style="
               background-color: ${color};
-              width: 20px;
-              height: 20px;
+              width: 12px;
+              height: 12px;
               border-radius: 50%;
               border: 2px solid white;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 10px;
-              font-weight: bold;
-              color: white;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.3);
             "></div>`,
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-            popupAnchor: [0, -10]
+            iconSize: [12, 12],
+            iconAnchor: [6, 6],
+            popupAnchor: [0, -6]
           });
           
           // Create popup content
@@ -183,12 +250,10 @@ const JobMap = ({ data, title, loading }) => {
               <h4 style="margin: 0 0 8px 0; color: #333;">${job.jobNo || 'N/A'}</h4>
               <p style="margin: 4px 0;"><strong>Status:</strong> ${job.status || 'N/A'}</p>
               <p style="margin: 4px 0;"><strong>Type:</strong> ${job.type || 'N/A'}</p>
-              <p style="margin: 4px 0;"><strong>Priority:</strong> ${job.priority || 'N/A'}</p>
               <p style="margin: 4px 0;"><strong>Location:</strong> ${job.locationName || job.location?.name || 'N/A'}</p>
               <p style="margin: 4px 0;"><strong>Province:</strong> ${job.locationProvince || job.location?.province || 'N/A'}</p>
               <p style="margin: 4px 0;"><strong>Customer:</strong> ${job.customerName || 'N/A'}</p>
               <p style="margin: 4px 0;"><strong>Technician:</strong> ${job.technicianNames || job.technician_names || 'N/A'}</p>
-              <p style="margin: 4px 0;"><strong>Created:</strong> ${job.createdAt ? new Date(job.createdAt).toLocaleString() : 'N/A'}</p>
             </div>
           `;
           
@@ -201,23 +266,26 @@ const JobMap = ({ data, title, loading }) => {
           validMarkers++;
         });
         
-        console.log(`Added ${validMarkers} valid markers to map`);
+        console.log(`✅ Added ${validMarkers} valid markers to map`);
+        console.log(`❌ Skipped ${invalidCoordinates} jobs with invalid coordinates`);
         
         // Fit map to show all markers
         if (validMarkers > 0) {
-          // Add some padding to the bounds
           const paddedBounds = bounds.pad(0.1);
           leafletMap.current.fitBounds(paddedBounds);
+          console.log('🎯 Map bounds adjusted to show all markers');
         } else {
           // Default view for Thailand if no markers
           leafletMap.current.setView([13.7563, 100.5018], 6);
+          console.log('🎯 No markers found, using default Thailand view');
         }
         
-        // Add legend
+        // Add simple legend
         addLegend(L, statusColors);
         
       } catch (error) {
-        console.error("Error updating markers:", error);
+        console.error('❌ Error updating markers:', error);
+        setInitError(`Error updating markers: ${error.message}`);
       }
     };
     
@@ -226,50 +294,54 @@ const JobMap = ({ data, title, loading }) => {
 
   // Add legend to map
   const addLegend = (L, statusColors) => {
-    // Remove existing legend
-    if (window.mapLegend) {
-      leafletMap.current.removeControl(window.mapLegend);
-    }
-    
-    const legend = L.control({ position: 'bottomright' });
-    
-    legend.onAdd = function() {
-      const div = L.DomUtil.create('div', 'info legend');
-      div.style.cssText = `
-        background: white;
-        padding: 10px;
-        border: 2px solid #ccc;
-        border-radius: 5px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        font-family: Arial, sans-serif;
-        font-size: 12px;
-        line-height: 16px;
-      `;
+    try {
+      // Remove existing legend
+      if (window.mapLegend) {
+        leafletMap.current.removeControl(window.mapLegend);
+      }
       
-      let legendHTML = '<h4 style="margin: 0 0 8px 0;">Job Status</h4>';
+      const legend = L.control({ position: 'bottomright' });
       
-      Object.entries(statusColors).forEach(([status, color]) => {
-        legendHTML += `
-          <div style="margin: 4px 0; display: flex; align-items: center;">
-            <div style="
-              width: 12px; 
-              height: 12px; 
-              background-color: ${color}; 
-              border-radius: 50%; 
-              margin-right: 8px; 
-              border: 1px solid #ccc;
-            "></div>
-            <span>${status}</span>
-          </div>
+      legend.onAdd = function() {
+        const div = L.DomUtil.create('div', 'info legend');
+        div.style.cssText = `
+          background: white;
+          padding: 8px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+          font-family: Arial, sans-serif;
+          font-size: 11px;
+          line-height: 14px;
         `;
-      });
+        
+        let legendHTML = '<div style="margin-bottom: 4px; font-weight: bold;">Job Status</div>';
+        
+        Object.entries(statusColors).forEach(([status, color]) => {
+          legendHTML += `
+            <div style="margin: 2px 0; display: flex; align-items: center;">
+              <div style="
+                width: 8px; 
+                height: 8px; 
+                background-color: ${color}; 
+                border-radius: 50%; 
+                margin-right: 6px; 
+                border: 1px solid #fff;
+              "></div>
+              <span style="font-size: 10px;">${status}</span>
+            </div>
+          `;
+        });
+        
+        div.innerHTML = legendHTML;
+        return div;
+      };
       
-      div.innerHTML = legendHTML;
-      return div;
-    };
-    
-    legend.addTo(leafletMap.current);
-    window.mapLegend = legend;
+      legend.addTo(leafletMap.current);
+      window.mapLegend = legend;
+    } catch (error) {
+      console.error('❌ Error adding legend:', error);
+    }
   };
 
   return (
@@ -307,6 +379,21 @@ const JobMap = ({ data, title, loading }) => {
           >
             {title}
           </Typography>
+        )}
+        
+        {/* Error display */}
+        {initError && (
+          <Box sx={{ 
+            mb: 1, 
+            p: 1, 
+            bgcolor: alpha(theme.palette.error.main, 0.1), 
+            borderRadius: 1,
+            color: theme.palette.error.main
+          }}>
+            <Typography variant="caption">
+              Error: {initError}
+            </Typography>
+          </Box>
         )}
         
         {loading ? (

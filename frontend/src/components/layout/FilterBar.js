@@ -1,4 +1,4 @@
-// File: frontend/src/components/layout/FilterBar.js (COMPLETE FILE with Multi-Select Technician)
+// File: frontend/src/components/layout/FilterBar.js (FIXED Multi-Select Implementation)
 import React, { useState, useEffect } from 'react';
 import { 
   Paper, 
@@ -19,7 +19,9 @@ import {
   Typography,
   InputAdornment,
   Badge,
-  CircularProgress
+  CircularProgress,
+  Checkbox,
+  ListItemText
 } from '@mui/material';
 import { 
   DateRange as DateRangeIcon,
@@ -30,7 +32,8 @@ import {
   CalendarMonth as CalendarMonthIcon,
   Tune as TuneIcon,
   Check as CheckIcon,
-  Engineering as EngineeringIcon
+  Engineering as EngineeringIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -93,9 +96,66 @@ const FilterBar = () => {
     refreshFilterOptions();
   };
   
+  // FIXED: Handle multi-select technician change
+  const handleTechnicianChange = (event) => {
+    const value = event.target.value;
+    console.log('Multi-select technician change:', value);
+    
+    // Handle "All" selection
+    if (value.includes('All') || value.length === 0) {
+      console.log('Clearing technician selection (All selected or empty)');
+      updateFilters({ 
+        technicianIds: [],
+        technician: 'All'
+      });
+      return;
+    }
+    
+    // Update with selected technician IDs
+    const selectedTechNames = value
+      .map(id => {
+        const tech = filterOptions.technicians.find(t => t.id === id);
+        return tech ? tech.fullName : null;
+      })
+      .filter(name => name)
+      .join(', ');
+    
+    console.log('Selected techs:', value);
+    console.log('Selected tech names:', selectedTechNames);
+    
+    updateFilters({ 
+      technicianIds: value,
+      technician: selectedTechNames || 'All'
+    });
+  };
+  
+  // FIXED: Render selected technicians
+  const renderTechnicianValue = (selected) => {
+    if (!selected || selected.length === 0) {
+      return t("All Technicians");
+    }
+    
+    if (selected.length === 1) {
+      const tech = filterOptions.technicians.find(t => t.id === selected[0]);
+      return tech ? tech.fullName : t("1 Selected");
+    }
+    
+    return `${selected.length} ${t("Selected")}`;
+  };
+  
+  // Clear technician selection
+  const clearTechnicianSelection = (event) => {
+    event.stopPropagation();
+    updateFilters({ 
+      technicianIds: [],
+      technician: 'All'
+    });
+  };
+  
   const activeFiltersCount = Object.entries(filters).filter(([key, value]) => {
-    if (key === 'startDate' || key === 'endDate' || key === 'page' || key === 'limit' || key === 'technicianId' || key === 'technicianIds') return false;
+    if (key === 'startDate' || key === 'endDate' || key === 'page' || key === 'limit') return false;
     if (key === 'technicianIds' && Array.isArray(value) && value.length > 0) return true;
+    if (key === 'technicianIds') return false; // Don't count empty array
     return value !== 'All';
   }).length;
 
@@ -385,7 +445,7 @@ const FilterBar = () => {
               </FormControl>
             </Grid>
             
-            {/* MULTI-SELECT TECHNICIAN FILTER */}
+            {/* FIXED: MULTI-SELECT TECHNICIAN FILTER */}
             <Grid item xs={12} md={expanded ? 3 : 2.4}>
               <FormControl 
                 fullWidth 
@@ -400,49 +460,27 @@ const FilterBar = () => {
                   }
                 }}
               >
-                <InputLabel>{t("Technicians")}</InputLabel>
+                <InputLabel id="technician-select-label">{t("Technicians")}</InputLabel>
                 <Select
+                  labelId="technician-select-label"
                   multiple
                   value={filters.technicianIds || []}
+                  onChange={handleTechnicianChange}
                   label={t("Technicians")}
-                  onChange={(e) => {
-                    const values = e.target.value;
-                    console.log('Multiple technicians selected:', values);
-                    
-                    if (values.length === 0 || values.includes('All')) {
-                      // If "All" is selected or nothing selected, clear all
-                      updateFilters({ 
-                        technicianIds: [],
-                        technician: 'All'
-                      });
-                    } else {
-                      // Update with selected technician IDs
-                      const selectedTechNames = values
-                        .map(id => {
-                          const tech = filterOptions.technicians.find(t => t.id === id);
-                          return tech ? tech.fullName : null;
-                        })
-                        .filter(name => name)
-                        .join(', ');
-                      
-                      updateFilters({ 
-                        technicianIds: values,
-                        technician: selectedTechNames || 'All'
-                      });
-                    }
-                  }}
-                  renderValue={(selected) => {
-                    if (selected.length === 0) {
-                      return t("All Technicians");
-                    }
-                    
-                    if (selected.length === 1) {
-                      const tech = filterOptions.technicians.find(t => t.id === selected[0]);
-                      return tech ? tech.fullName : t("1 Selected");
-                    }
-                    
-                    return `${selected.length} ${t("Technicians Selected")}`;
-                  }}
+                  renderValue={renderTechnicianValue}
+                  endAdornment={
+                    filters.technicianIds && filters.technicianIds.length > 0 ? (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={clearTechnicianSelection}
+                          sx={{ mr: 1 }}
+                        >
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    ) : null
+                  }
                   MenuProps={{
                     PaperProps: {
                       style: {
@@ -454,50 +492,40 @@ const FilterBar = () => {
                 >
                   {/* "All" option */}
                   <MenuItem value="All">
-                    <Box display="flex" alignItems="center" width="100%">
-                      <CheckIcon 
-                        fontSize="small" 
-                        sx={{ 
-                          mr: 1, 
-                          color: (!filters.technicianIds || filters.technicianIds.length === 0) 
-                            ? theme.palette.primary.main 
-                            : 'transparent' 
-                        }} 
-                      />
-                      {t("All Technicians")}
-                    </Box>
+                    <Checkbox 
+                      checked={!filters.technicianIds || filters.technicianIds.length === 0}
+                      size="small"
+                    />
+                    <ListItemText primary={t("All Technicians")} />
                   </MenuItem>
                   
                   {/* Individual technicians */}
                   {filterOptions.technicians && filterOptions.technicians.length > 0 ? (
                     filterOptions.technicians.map((tech) => (
                       <MenuItem key={tech.id} value={tech.id}>
-                        <Box display="flex" alignItems="center" width="100%">
-                          <CheckIcon 
-                            fontSize="small" 
-                            sx={{ 
-                              mr: 1, 
-                              color: (filters.technicianIds && filters.technicianIds.includes(tech.id))
-                                ? theme.palette.primary.main 
-                                : 'transparent' 
-                            }} 
-                          />
-                          <Box display="flex" flexDirection="column" width="100%">
-                            <Typography variant="body2">
-                              {tech.fullName}
-                              {tech.code && (
-                                <Typography component="span" color="primary" sx={{ ml: 1 }}>
-                                  ({tech.code})
+                        <Checkbox 
+                          checked={filters.technicianIds && filters.technicianIds.includes(tech.id)}
+                          size="small"
+                        />
+                        <ListItemText 
+                          primary={
+                            <Box>
+                              <Typography variant="body2">
+                                {tech.fullName}
+                                {tech.code && (
+                                  <Typography component="span" color="primary" sx={{ ml: 1 }}>
+                                    ({tech.code})
+                                  </Typography>
+                                )}
+                              </Typography>
+                              {tech.position && (
+                                <Typography variant="caption" color="text.secondary">
+                                  {tech.position}
                                 </Typography>
                               )}
-                            </Typography>
-                            {tech.position && (
-                              <Typography variant="caption" color="text.secondary">
-                                {tech.position}
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
+                            </Box>
+                          }
+                        />
                       </MenuItem>
                     ))
                   ) : (
@@ -580,6 +608,45 @@ const FilterBar = () => {
               </>
             )}
           </Grid>
+          
+          {/* Display selected technicians as chips */}
+          {filters.technicianIds && filters.technicianIds.length > 0 && (
+            <Box mt={2}>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                {t("Selected Technicians")}:
+              </Typography>
+              <Box display="flex" flexWrap="wrap" gap={1}>
+                {filters.technicianIds.map((techId) => {
+                  const tech = filterOptions.technicians.find(t => t.id === techId);
+                  if (!tech) return null;
+                  
+                  return (
+                    <Chip
+                      key={techId}
+                      label={tech.displayName || tech.fullName}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      onDelete={() => {
+                        const newIds = filters.technicianIds.filter(id => id !== techId);
+                        updateFilters({
+                          technicianIds: newIds,
+                          technician: newIds.length > 0 ? 
+                            newIds.map(id => filterOptions.technicians.find(t => t.id === id)?.fullName).join(', ') : 
+                            'All'
+                        });
+                      }}
+                      sx={{
+                        '& .MuiChip-deleteIcon': {
+                          fontSize: '0.8rem'
+                        }
+                      }}
+                    />
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
         </Box>
       </Collapse>
       
